@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 import React from "react";
 import DMConversationItem from "./_components/DMConversationItem";
 
-type Props = React.PropsWithChildren<{}>;
+type Props = React.PropsWithChildren<object>;
 
 const ConversationsLayout = ({ children }: Props) => {
   const conversations = useQuery(api.conversations.get);
@@ -15,20 +15,20 @@ const ConversationsLayout = ({ children }: Props) => {
     <>
       <ItemList title="Conversations">
         {conversations ? (
-          conversations.length == 0 ? (
+          conversations.length === 0 ? (
             <p className="w-full h-full flex items-center justify-center">
               No conversations found
             </p>
           ) : (
-            conversations.map((conversations) => {
-              return conversations.conversation.isGroup ? null : (
+            conversations.map((conv) => {
+              return conv.conversation.isGroup ? null : (
                 <DMConversationItem
-                  key={conversations.conversation._id}
-                  id={conversations.conversation._id}
-                  imageUrl={conversations.otherMember?.imageUrl||""}
-                  username={conversations.otherMember?.username||""}
-                  lstMsgContent={conversations.lastMessage?.content}
-                  lstMsgSender={conversations.lastMessage?.sender}
+                  key={conv.conversation._id}
+                  id={conv.conversation._id}
+                  imageUrl={conv.otherMember?.imageUrl || ""}
+                  username={conv.otherMember?.username || ""}
+                  lstMsgContent={conv.lastMessage?.content}
+                  lstMsgSender={conv.lastMessage?.sender}
                 />
               );
             })

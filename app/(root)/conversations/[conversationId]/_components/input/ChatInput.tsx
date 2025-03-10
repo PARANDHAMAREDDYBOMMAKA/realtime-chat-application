@@ -12,7 +12,7 @@ import { useConversation } from "@/hooks/useConversation";
 import { useMutationState } from "@/hooks/useMutationState";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ConvexError } from "convex/values";
-import React, { useRef } from "react";
+import React from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -25,19 +25,14 @@ const chatMessageSchema = z.object({
 });
 
 const ChatInput = () => {
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
   const { conversationId } = useConversation();
-
   const { mutate: createMessage, pending } = useMutationState(
     api.message.create
   );
 
   const form = useForm<z.infer<typeof chatMessageSchema>>({
     resolver: zodResolver(chatMessageSchema),
-    defaultValues: {
-      content: "",
-    },
+    defaultValues: { content: "" },
   });
 
   const handleSubmit = async (values: z.infer<typeof chatMessageSchema>) => {
@@ -48,7 +43,7 @@ const ChatInput = () => {
         content: [values.content],
       });
       form.reset();
-    //   toast.success("Message sent");
+      // toast.success("Message sent");
     } catch (err: unknown) {
       if (err instanceof ConvexError) {
         toast.error(err.data ?? "Something went wrong");
