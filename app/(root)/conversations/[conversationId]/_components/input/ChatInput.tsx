@@ -72,6 +72,12 @@ const ChatInput = () => {
                     {...field}
                     placeholder="Type your message..."
                     className="min-h-full w-full resize-none border-0 outline-0 bg-card text-card-foreground placeholder:text-muted-foreground p-1.5"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        form.handleSubmit(handleSubmit)();
+                      }
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
