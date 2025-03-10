@@ -1,5 +1,4 @@
 "use client";
-import { useParams } from "next/navigation";
 import ConversationContainer from "@/components/shared/conversation/ConversationContainer";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
