@@ -8,15 +8,6 @@ A fully functional, real-time messaging application built with modern web techno
 
 Try it out here: **[Live Chat App](https://realtime-chat-application-xxew.onrender.com/)**
 
-**Features**
-------------
-
--   Google & Email Authentication (via Clerk)
--   User Invitations & Friend System
--   Real-Time Messaging with instant updates (via Convex)
--   Beautiful, Responsive UI (using Tailwind CSS + ShadCN)
--   Secure & Scalable (Next.js with Clerk authentication)
-
 **Tech Stack**
 --------------
 
@@ -26,6 +17,16 @@ Try it out here: **[Live Chat App](https://realtime-chat-application-xxew.onrend
 -   **Clerk** -- Secure authentication & user management
 -   **Zod** -- Ensures strict data validation & type safety
 -   **ShadCN** -- Modern pre-styled UI components
+
+**Features**
+------------
+
+-   Google & Email Authentication (via Clerk)
+-   User Invitations & Friend System
+-   Real-Time Messaging with instant updates (via Convex)
+-   Beautiful, Responsive UI (using Tailwind CSS + ShadCN)
+-   Secure & Scalable (Next.js with Clerk authentication)
+
 
 **Getting Started**
 -------------------
@@ -119,6 +120,5 @@ or
 
 Feel free to try out the app, share your feedback, or contribute to make it even better!
 
-Live Demo: **[Try It Here](https://realtime-chat-application-xxew.onrender.com/)**
 
 🚀 Happy Coding! 🚀
