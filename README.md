@@ -96,6 +96,24 @@ or
 -   Typing Indicators
 -   Custom Avatars & User Profiles
 
+**Screenshots**
+----------------
+
+![Login Screen](screenshots/login.png)
+*Login Screen*
+
+![Signing Modal](screenshots/signingmodal.png)
+*Signing Modal*
+
+![Conversations](screenshots/conversations.png)
+*Conversations Overview*
+
+![Chat Page](screenshots/Chatpage.png)
+*Chat Page*
+
+![Friend Request](screenshots/friendRequest.png)
+*Friend Request Screen*
+
 **Feedback & Contributions**
 ----------------------------
 
