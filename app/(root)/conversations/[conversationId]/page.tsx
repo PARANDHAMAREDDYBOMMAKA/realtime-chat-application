@@ -8,6 +8,8 @@ import React, { useState, useEffect } from "react";
 import Header from "./_components/Header";
 import Body from "./_components/body/Body";
 import ChatInput from "./_components/input/ChatInput";
+import RemoveFriendDialog from "./_components/dialogs/RemoveFriendDialog";
+import DeleteGroupDialog from "./_components/dialogs/DeleteGroupDialog";
 
 type Props = {
   params: Promise<{
@@ -27,24 +29,20 @@ const ConversationPage = ({ params }: Props) => {
     fetchParams();
   }, [params]);
 
-  useEffect(() => {
-    const fetchParams = async () => {
-      const resolvedParams = await params;
-      setConversationId(resolvedParams.conversationId);
-    };
-    fetchParams();
-  }, [params]);
-  const conversation = useQuery(api.conversation.get, { id: conversationId! }); // Ensure conversationId is not null
+  const conversation = useQuery(
+    api.conversation.get,
+    conversationId ? { id: conversationId } : "skip"
+  );
 
-  const [removeFriendDialog, setRemoveFriendDialog] = useState(false); // eslint-disable-line @typescript-eslint/no-unused-vars
-  const [deleteGroupDialog, setDeleteGroupDialog] = useState(false); // eslint-disable-line @typescript-eslint/no-unused-vars
-  const [leaveGroupDialog, setLeaveGroupDialog] = useState(false); // eslint-disable-line @typescript-eslint/no-unused-vars
-  const [callType, setCallType] = useState<"audio" | "video" | null>(null); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const [removeFriendDialog, setRemoveFriendDialog] = useState(false);
+  const [deleteGroupDialog, setDeleteGroupDialog] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [leaveGroupDialog, setLeaveGroupDialog] = useState(false);
 
-  if (conversation == undefined) {
+  if (!conversationId || conversation === undefined) {
     return (
       <div className="w-full h-full flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />{" "}
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -59,37 +57,58 @@ const ConversationPage = ({ params }: Props) => {
 
   return (
     <ConversationContainer>
-      <Header
-        imageUrl={
-          conversation.isGroup ? undefined : conversation.otherMember.imageUrl
-        }
-        name={
-          (conversation.isGroup
-            ? conversation.name
-            : conversation.otherMember.username) || ""
-        }
-        options={
-          conversation.isGroup
-            ? [
-                {
-                  label: "Leave Group",
-                  destructive: false,
-                  onClick: () => setLeaveGroupDialog(true),
-                },
-                {
-                  label: "Delete Group",
-                  destructive: false,
-                  onClick: () => setDeleteGroupDialog(true),
-                },
-                {
-                  label: "Remove Friend",
-                  destructive: true,
-                  onClick: () => setRemoveFriendDialog(true),
-                },
-              ]
-            : []
-        }
-      />
+      {/* Render the appropriate dialog based on conversation type */}
+      {!conversation.isGroup ? (
+        <RemoveFriendDialog
+          conversationId={conversationId}
+          open={removeFriendDialog}
+          setOpen={setRemoveFriendDialog}
+        />
+      ) : (
+        <DeleteGroupDialog
+          conversationId={conversationId}
+          open={deleteGroupDialog}
+          setOpen={setDeleteGroupDialog}
+        />
+      )}
+
+      {conversation && (
+        <Header
+          imageUrl={
+            conversation.isGroup
+              ? undefined
+              : conversation.otherMember?.imageUrl
+          }
+          name={
+            conversation.isGroup
+              ? conversation.name || ""
+              : conversation.otherMember?.username || ""
+          }
+          options={
+            conversation.isGroup
+              ? [
+                  {
+                    label: "Leave Group",
+                    destructive: false,
+                    onClick: () => setLeaveGroupDialog(true),
+                  },
+                  {
+                    label: "Delete Group",
+                    destructive: true,
+                    onClick: () => setDeleteGroupDialog(true),
+                  },
+                ]
+              : [
+                  {
+                    label: "Remove Friend",
+                    destructive: true,
+                    onClick: () => setRemoveFriendDialog(true),
+                  },
+                ]
+          }
+        />
+      )}
+
       <Body />
       <ChatInput />
     </ConversationContainer>

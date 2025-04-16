@@ -2,10 +2,9 @@ import { ConvexError, v } from "convex/values";
 import { mutation } from "./_generated/server";
 import { getUserByClerjId } from "./_utils";
 
-export const create = mutation({
+export const remove = mutation({
     args: {
         conversationId: v.id("conversations"),
-
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
@@ -30,7 +29,7 @@ export const create = mutation({
 
         const friendships = await ctx.db.query("friends").withIndex("by_conversationId", q => { return q.eq("conversationId", args.conversationId) }).unique();
 
-        if(!friendships){
+        if (!friendships) {
             throw new ConvexError("Friendship not found");
         }
 
@@ -39,10 +38,10 @@ export const create = mutation({
 
         await ctx.db.delete(friendships._id)
 
-        await Promise.all(membership.map(async memberships=>{
+        await Promise.all(membership.map(async memberships => {
             await ctx.db.delete(memberships._id)
         }))
-        await Promise.all(messages.map(async message=>{
+        await Promise.all(messages.map(async message => {
             await ctx.db.delete(message._id)
         }))
     }
