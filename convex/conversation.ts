@@ -41,7 +41,8 @@ export const get = query({
                 ...conversation,
                 otherMember: {
                     ...otherMemberDetails,
-                    lastSeenMessageId: otherMembership.lastSeenMessage
+                    lastSeenMessageId: otherMembership.lastSeenMessage,
+                    isTyping: otherMembership.isTyping ?? false
                 },
                 otherMembers: null
             }
@@ -82,7 +83,8 @@ export const createGroup = mutation({
         await Promise.all([...args.members, currentUser._id].map(async memberId => {
             await ctx.db.insert("conversationMembers", {
                 memberId,
-                conversationId
+                conversationId,
+                isTyping: false
             })
         }))
 
@@ -128,3 +130,138 @@ export const deleteConversation = mutation({
         }))
     }
 })
+
+export const updateLastSeenMessage = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    messageId: v.id("messages"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new ConvexError("Unauthorized");
+    const currentUser = await getUserByClerjId({ ctx, clerkId: identity.subject });
+    if (!currentUser) throw new ConvexError("User not found");
+    const membership = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_memberId_conversationId", (q) =>
+        q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)
+      )
+      .unique();
+    if (!membership) throw new ConvexError("Membership not found");
+    await ctx.db.patch(membership._id, { lastSeenMessage: args.messageId });
+  },
+});
+
+export const setTyping = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    isTyping: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new ConvexError("Unauthorized");
+    const currentUser = await getUserByClerjId({ ctx, clerkId: identity.subject });
+    if (!currentUser) throw new ConvexError("User not found");
+    const membership = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_memberId_conversationId", (q) =>
+        q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)
+      )
+      .unique();
+    if (!membership) throw new ConvexError("Membership not found");
+    await ctx.db.patch(membership._id, {
+      isTyping: args.isTyping,
+      lastTypingTime: args.isTyping ? Date.now() : undefined
+    });
+  },
+});
+
+export const startTyping = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new ConvexError("Unauthorized");
+    const currentUser = await getUserByClerjId({ ctx, clerkId: identity.subject });
+    if (!currentUser) throw new ConvexError("User not found");
+    const membership = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_memberId_conversationId", (q) =>
+        q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)
+      )
+      .unique();
+    if (!membership) throw new ConvexError("Membership not found");
+    await ctx.db.patch(membership._id, {
+      isTyping: true,
+      lastTypingTime: Date.now()
+    });
+  },
+});
+
+export const stopTyping = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new ConvexError("Unauthorized");
+    const currentUser = await getUserByClerjId({ ctx, clerkId: identity.subject });
+    if (!currentUser) throw new ConvexError("User not found");
+    const membership = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_memberId_conversationId", (q) =>
+        q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)
+      )
+      .unique();
+    if (!membership) throw new ConvexError("Membership not found");
+    await ctx.db.patch(membership._id, {
+      isTyping: false,
+      lastTypingTime: undefined
+    });
+  },
+});
+
+export const getTypingUsers = query({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+    const currentUser = await getUserByClerjId({ ctx, clerkId: identity.subject });
+    if (!currentUser) return [];
+
+    const now = Date.now();
+    const typingThreshold = 5000; // 5 seconds
+
+    const typingMembers = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_conversationId", (q) => q.eq("conversationId", args.conversationId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("isTyping"), true),
+          q.neq(q.field("memberId"), currentUser._id)
+        )
+      )
+      .collect();
+
+    // Filter out stale typing indicators and get user details
+    const activeTypingUsers = await Promise.all(
+      typingMembers
+        .filter(member =>
+          member.lastTypingTime && (now - member.lastTypingTime < typingThreshold)
+        )
+        .map(async (member) => {
+          const user = await ctx.db.get(member.memberId);
+          return user ? {
+            _id: user._id,
+            username: user.username,
+            imageUrl: user.imageUrl,
+          } : null;
+        })
+    );
+
+    return activeTypingUsers.filter(Boolean);
+  },
+});

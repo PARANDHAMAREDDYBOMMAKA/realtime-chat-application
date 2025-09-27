@@ -138,12 +138,14 @@ export const accept = mutation({
 
         await ctx.db.insert("conversationMembers",{
             memberId : currentUser._id,
-            conversationId
+            conversationId,
+            isTyping: false
         })
 
         await ctx.db.insert("conversationMembers",{
             memberId : request.sender,
-            conversationId
+            conversationId,
+            isTyping: false
         })
 
         await ctx.db.delete(request._id);

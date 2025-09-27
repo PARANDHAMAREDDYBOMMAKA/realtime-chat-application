@@ -12,6 +12,7 @@ type Props = {
   content: string[];
   createdAt: number;
   type: string;
+  seen?: boolean;
 };
 
 const Message = ({
@@ -22,6 +23,7 @@ const Message = ({
   content,
   createdAt,
   type,
+  seen,
 }: Props) => {
   const formatTime = (timeStamp: number) => {
     return format(timeStamp, "HH:mm");
@@ -54,6 +56,9 @@ const Message = ({
             })}
           >
             {formatTime(createdAt)}
+            {fromCurrentUser && seen && (
+              <span className="ml-2 text-green-500">✔️ Seen</span>
+            )}
           </p>
         </div>
       </div>

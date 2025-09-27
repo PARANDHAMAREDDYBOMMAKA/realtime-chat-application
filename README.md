@@ -121,4 +121,8 @@ or
 Feel free to try out the app, share your feedback, or contribute to make it even better!
 
 
-🚀 Happy Coding! 🚀
+�� Happy Coding! 🚀
+
+## WebRTC Calling Feature
+- Uses a custom `server.js` for Socket.io signaling (required for WebRTC calls).
+- Start the app with `node server.js` instead of `next dev` for calling to work.

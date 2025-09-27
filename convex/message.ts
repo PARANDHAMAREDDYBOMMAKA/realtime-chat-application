@@ -32,6 +32,7 @@ export const create = mutation({
 
         const message = await ctx.db.insert("messages", {
             senderId: currentUser._id,
+            createdAt: Date.now(),
             ...args
         })
         await ctx.db.patch(args.conversationId, {

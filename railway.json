@@ -1,0 +1,13 @@
+{
+  "build": {
+    "commands": [
+      "npm install",
+      "npm run build"
+    ]
+  },
+  "deploy": {
+    "startCommand": "npm start",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
