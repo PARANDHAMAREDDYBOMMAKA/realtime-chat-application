@@ -9,18 +9,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar } from "@radix-ui/react-avatar";
-import { CircleArrowLeft, Settings, Phone, Video } from "lucide-react";
+import { CircleArrowLeft, Settings } from "lucide-react";
 import Link from "next/link";
 import React from "react";
-import CallModal from "./CallModal";
-
-import { Id } from "@/convex/_generated/dataModel";
 
 type Props = {
   imageUrl?: string;
   name: string;
-  conversationId: Id<"conversations">;
-  remoteUserId?: Id<"users">;
   options?: {
     label: string;
     destructive: boolean;
@@ -28,19 +23,7 @@ type Props = {
   }[];
 };
 
-const Header = ({ imageUrl, name, conversationId, remoteUserId, options }: Props) => {
-  const [callOpen, setCallOpen] = React.useState(false);
-  const [isVideoCall, setIsVideoCall] = React.useState(false);
-
-  const handleVoiceCall = () => {
-    setIsVideoCall(false);
-    setCallOpen(true);
-  };
-
-  const handleVideoCall = () => {
-    setIsVideoCall(true);
-    setCallOpen(true);
-  };
+const Header = ({ imageUrl, name, options }: Props) => {
   return (
     <Card className="w-full flex rounded-lg items-center p-1 justify-center relative">
       <Link href="/conversations" className="absolute left-2 block lg:hidden">
@@ -56,12 +39,6 @@ const Header = ({ imageUrl, name, conversationId, remoteUserId, options }: Props
       </div>
 
       <div className="absolute right-2 flex items-center gap-2">
-        <Button size="icon" variant="secondary" aria-label="Voice Call" onClick={handleVoiceCall}>
-          <Phone />
-        </Button>
-        <Button size="icon" variant="secondary" aria-label="Video Call" onClick={handleVideoCall}>
-          <Video />
-        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="icon" variant="secondary">
@@ -89,15 +66,6 @@ const Header = ({ imageUrl, name, conversationId, remoteUserId, options }: Props
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <CallModal
-        open={callOpen}
-        onClose={() => setCallOpen(false)}
-        conversationId={conversationId}
-        isCaller={true}
-        remoteName={name}
-        remoteUserId={remoteUserId}
-        isVideoCall={isVideoCall}
-      />
     </Card>
   );
 };

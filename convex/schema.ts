@@ -66,38 +66,5 @@ export default defineSchema({
         replyTo: v.optional(v.id("messages")),
     }).index("by_conversationId", ["conversationId"]).index("by_senderId_conversationId", ["senderId", "conversationId"]).index("by_room", ["roomId"]).index("by_created", ["createdAt"]),
 
-    calls: defineTable({
-        roomId: v.optional(v.id("rooms")),
-        conversationId: v.optional(v.id("conversations")),
-        initiatorId: v.id("users"),
-        type: v.union(v.literal("audio"), v.literal("video")),
-        status: v.union(v.literal("ringing"), v.literal("active"), v.literal("ended"), v.literal("missed")),
-        startedAt: v.number(),
-        endedAt: v.optional(v.number()),
-        duration: v.optional(v.number()),
-    }).index("by_room", ["roomId"]).index("by_conversation", ["conversationId"]).index("by_initiator", ["initiatorId"]).index("by_status", ["status"]),
-
-    callParticipants: defineTable({
-        callId: v.id("calls"),
-        userId: v.id("users"),
-        joinedAt: v.optional(v.number()),
-        leftAt: v.optional(v.number()),
-        status: v.union(v.literal("invited"), v.literal("joined"), v.literal("left"), v.literal("declined")),
-        mediaState: v.optional(v.object({
-            audio: v.boolean(),
-            video: v.boolean(),
-        })),
-    }).index("by_call", ["callId"]).index("by_user", ["userId"]).index("by_call_user", ["callId", "userId"]),
-
-    peerConnections: defineTable({
-        callId: v.id("calls"),
-        fromUserId: v.id("users"),
-        toUserId: v.id("users"),
-        offer: v.optional(v.string()),
-        answer: v.optional(v.string()),
-        iceCandidates: v.array(v.string()),
-        status: v.union(v.literal("pending"), v.literal("connected"), v.literal("failed"), v.literal("closed")),
-        createdAt: v.number(),
-    }).index("by_call", ["callId"]).index("by_from_user", ["fromUserId"]).index("by_to_user", ["toUserId"]).index("by_call_users", ["callId", "fromUserId", "toUserId"]),
 
 })

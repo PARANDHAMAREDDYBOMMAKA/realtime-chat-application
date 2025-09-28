@@ -6,6 +6,7 @@ import Message from "./Message";
 import { useUser } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import TypingIndicator from "../TypingIndicator";
 
 interface Message {
   id: string;
@@ -45,9 +46,8 @@ export default function Body({ conversationId }: BodyProps) {
     }
   }, [messages, conversationId, user, updateLastSeenMessage]);
 
-  // Get the lastSeenMessageId and isTyping from the other user (for 1:1)
+  // Get the lastSeenMessageId from the other user (for 1:1)
   const lastSeenMessageId = conversation?.otherMember?.lastSeenMessageId;
-  const isOtherTyping = !!conversation?.otherMember?.isTyping;
 
   if (!conversationId) {
     return null;
@@ -55,9 +55,7 @@ export default function Body({ conversationId }: BodyProps) {
 
   return (
     <div className="flex-1 w-full flex overflow-y-scroll flex-col-reverse gap-2 p-3 no-scrollbar">
-      {isOtherTyping && (
-        <div className="text-xs text-muted-foreground mb-2">Typing...</div>
-      )}
+      <TypingIndicator conversationId={conversationId} />
       {messages?.map(
         ({ message, senderImage, senderName, isCurrentUser }, index) => {
           const lastByUser =
