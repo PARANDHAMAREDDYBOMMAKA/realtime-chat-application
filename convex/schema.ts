@@ -66,5 +66,14 @@ export default defineSchema({
         replyTo: v.optional(v.id("messages")),
     }).index("by_conversationId", ["conversationId"]).index("by_senderId_conversationId", ["senderId", "conversationId"]).index("by_room", ["roomId"]).index("by_created", ["createdAt"]),
 
+    calls: defineTable({
+        conversationId: v.id("conversations"),
+        initiatorId: v.id("users"),
+        type: v.union(v.literal("video"), v.literal("audio")),
+        status: v.union(v.literal("ringing"), v.literal("active"), v.literal("ended")),
+        roomName: v.string(),
+        startedAt: v.number(),
+        endedAt: v.optional(v.number()),
+    }).index("by_conversationId", ["conversationId"]).index("by_status", ["status"]).index("by_conversation_status", ["conversationId", "status"]),
 
 })

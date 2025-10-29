@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar } from "@radix-ui/react-avatar";
-import { CircleArrowLeft, Settings } from "lucide-react";
+import { CircleArrowLeft, Settings, Video, Phone } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 
@@ -21,9 +21,11 @@ type Props = {
     destructive: boolean;
     onClick: () => void;
   }[];
+  onVideoCall?: () => void;
+  onAudioCall?: () => void;
 };
 
-const Header = ({ imageUrl, name, options }: Props) => {
+const Header = ({ imageUrl, name, options, onVideoCall, onAudioCall }: Props) => {
   return (
     <Card className="w-full flex rounded-lg items-center p-1 justify-center relative">
       <Link href="/conversations" className="absolute left-2 block lg:hidden">
@@ -39,6 +41,33 @@ const Header = ({ imageUrl, name, options }: Props) => {
       </div>
 
       <div className="absolute right-2 flex items-center gap-2">
+        {/* Video Call Button */}
+        {onVideoCall && (
+          <Button
+            onClick={onVideoCall}
+            size="icon"
+            variant="ghost"
+            className="hover:bg-primary/10 hover:text-primary"
+            title="Start video call"
+          >
+            <Video className="h-5 w-5" />
+          </Button>
+        )}
+
+        {/* Audio Call Button */}
+        {onAudioCall && (
+          <Button
+            onClick={onAudioCall}
+            size="icon"
+            variant="ghost"
+            className="hover:bg-primary/10 hover:text-primary"
+            title="Start audio call"
+          >
+            <Phone className="h-5 w-5" />
+          </Button>
+        )}
+
+        {/* Settings Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="icon" variant="secondary">

@@ -121,20 +121,6 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
             rows={1}
             style={{ lineHeight: '1.5' }}
           />
-
-          {/* Placeholder enhancement */}
-          {!message && !isFocused && (
-            <motion.div
-              className="absolute inset-0 flex items-center pointer-events-none"
-              initial={{ opacity: 0.6 }}
-              animate={{ opacity: [0.6, 0.8, 0.6] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              <span className="text-muted-foreground/50 text-sm">
-                Type your message...
-              </span>
-            </motion.div>
-          )}
         </div>
 
         {/* Action buttons - right side */}

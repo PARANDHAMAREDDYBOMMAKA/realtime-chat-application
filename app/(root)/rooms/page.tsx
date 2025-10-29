@@ -1,6 +1,8 @@
 import React from 'react';
 import { ConversationFallback } from '@/components/shared/conversation/ConversationFallback';
 
+export const dynamic = 'force-dynamic';
+
 export default function RoomsPage() {
   return (
     <ConversationFallback
