@@ -15,6 +15,7 @@ import IncomingCallNotification from "./_components/IncomingCallNotification";
 import OutgoingCallNotification from "./_components/OutgoingCallNotification";
 import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
+import { capitalizeName } from "@/lib/utils";
 
 type Props = {
   params: Promise<{
@@ -169,11 +170,11 @@ const ConversationPage = ({ params }: Props) => {
         {/* Incoming Call Notification */}
         {activeCall?.status === "ringing" && !activeCall.isInitiator && conversation && (
           <IncomingCallNotification
-            callerName={
+            callerName={capitalizeName(
               conversation.isGroup
                 ? conversation.name || "Group"
                 : activeCall.initiator?.username || "Unknown"
-            }
+            )}
             callerImage={
               conversation.isGroup
                 ? undefined
@@ -188,11 +189,11 @@ const ConversationPage = ({ params }: Props) => {
         {/* Outgoing Call Notification */}
         {activeCall?.status === "ringing" && activeCall.isInitiator && conversation && (
           <OutgoingCallNotification
-            recipientName={
+            recipientName={capitalizeName(
               conversation.isGroup
                 ? conversation.name || "Group"
                 : conversation.otherMember?.username || "Unknown"
-            }
+            )}
             recipientImage={
               conversation.isGroup
                 ? undefined
@@ -220,11 +221,11 @@ const ConversationPage = ({ params }: Props) => {
                 ? undefined
                 : conversation.otherMember?.imageUrl
             }
-            name={
+            name={capitalizeName(
               conversation.isGroup
                 ? conversation.name || ""
                 : conversation.otherMember?.username || ""
-            }
+            )}
             options={
               conversation.isGroup
                 ? [

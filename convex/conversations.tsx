@@ -73,7 +73,13 @@ export const get = query({
       })
     );
 
-    return conversationsWithDetails;
+    const sortedConversations = conversationsWithDetails.sort((a, b) => {
+      const timeA = a.lastMessage?.timestamp ?? 0;
+      const timeB = b.lastMessage?.timestamp ?? 0;
+      return timeB - timeA;
+    });
+
+    return sortedConversations;
   },
 });
 
@@ -99,6 +105,7 @@ const getLastMessageDetails = async ({
   return {
     content,
     sender: sender.username,
+    timestamp: message.createdAt ?? message._creationTime,
   };
 };
 

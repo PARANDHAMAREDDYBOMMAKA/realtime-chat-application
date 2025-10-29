@@ -5,6 +5,7 @@ import { Users, Hash, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 import { motion } from "framer-motion";
+import { capitalizeName } from "@/lib/utils";
 
 type Props = {
   id: Id<"conversations">;
@@ -73,7 +74,7 @@ const GroupConversationItem = ({
                 <div className="flex items-center justify-between">
                   <h4 className="truncate font-medium group-hover:text-primary transition-colors duration-300 flex items-center gap-1.5">
                     <Hash className="h-3 w-3 text-muted-foreground group-hover:text-primary/70" />
-                    {name}
+                    {capitalizeName(name)}
                     <motion.span
                       className="inline-block h-1 w-1 rounded-full bg-blue-500/80 opacity-0 group-hover:opacity-100"
                       animate={{ scale: [1, 1.5, 1] }}
@@ -93,7 +94,7 @@ const GroupConversationItem = ({
                 {lstMsgSender && lstMsgContent ? (
                   <span className="text-sm text-muted-foreground flex truncate overflow-ellipsis">
                     <p className="font-semibold text-blue-600/80">
-                      {lstMsgSender}
+                      {capitalizeName(lstMsgSender)}
                       {":"}&nbsp;
                     </p>
                     <motion.p

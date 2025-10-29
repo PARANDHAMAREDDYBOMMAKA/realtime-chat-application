@@ -2,6 +2,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { capitalizeName } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -174,11 +175,11 @@ const CreateGroupDialog = () => {
                                   <Avatar className="w-8 h-8">
                                     <AvatarImage src={friend.imageUrl} />
                                     <AvatarFallback>
-                                      {friend.username.substring(0, 1)}
+                                      {capitalizeName(friend.username).substring(0, 1)}
                                     </AvatarFallback>
                                   </Avatar>
                                   <h4 className="truncate">
-                                    {friend.username}
+                                    {capitalizeName(friend.username)}
                                   </h4>
                                 </DropdownMenuCheckboxItem>
                               );
@@ -204,7 +205,7 @@ const CreateGroupDialog = () => {
                             <Avatar className="w-8 h-8">
                               <AvatarImage src={friend.imageUrl} />
                               <AvatarFallback>
-                                {friend.username.substring(0, 1)}
+                                {capitalizeName(friend.username).substring(0, 1)}
                               </AvatarFallback>
                             </Avatar>
                             <X
@@ -218,7 +219,7 @@ const CreateGroupDialog = () => {
                             />
                           </div>
                           <p className="truncate text-sm">
-                            {friend.username.split(" ")[0]}
+                            {capitalizeName(friend.username.split(" ")[0])}
                           </p>
                         </div>
                       );

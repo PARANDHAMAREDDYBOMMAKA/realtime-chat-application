@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useUser } from "@clerk/nextjs";
+import { capitalizeName } from "@/lib/utils";
 
 interface TypingIndicatorProps {
   conversationId: Id<"conversations">;
@@ -20,11 +21,11 @@ export default function TypingIndicator({ conversationId }: TypingIndicatorProps
 
   const getTypingMessage = () => {
     if (typingUsers.length === 1) {
-      return `${typingUsers[0]?.username} is typing...`;
+      return `${capitalizeName(typingUsers[0]?.username)} is typing...`;
     } else if (typingUsers.length === 2) {
-      return `${typingUsers[0]?.username} and ${typingUsers[1]?.username} are typing...`;
+      return `${capitalizeName(typingUsers[0]?.username)} and ${capitalizeName(typingUsers[1]?.username)} are typing...`;
     } else {
-      return `${typingUsers[0]?.username} and ${typingUsers.length - 1} others are typing...`;
+      return `${capitalizeName(typingUsers[0]?.username)} and ${typingUsers.length - 1} others are typing...`;
     }
   };
 

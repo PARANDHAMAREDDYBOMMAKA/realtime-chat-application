@@ -9,6 +9,7 @@ import { ConvexError } from "convex/values";
 import { Check, User, X } from "lucide-react";
 import React from "react";
 import { toast } from "sonner";
+import { capitalizeName } from "@/lib/utils";
 
 type Props = {
   id: Id<"requests">;
@@ -36,7 +37,7 @@ const Request = ({ id, imageUrl, username, email }: Props) => {
           </AvatarFallback>
         </Avatar>
         <div className="flex felx-col truncate">
-          <h4 className="truncate">{username}</h4>
+          <h4 className="truncate">{capitalizeName(username)}</h4>
           <p className="text xstext-muted-foreground truncate">{email}</p>
         </div>
       </div>
