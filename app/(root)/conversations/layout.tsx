@@ -55,6 +55,7 @@ const ConversationsLayout = ({ children }: Props) => {
                   username={conv.otherMember?.username || ""}
                   lstMsgContent={conv.lastMessage?.content}
                   lstMsgSender={conv.lastMessage?.sender}
+                  userStatus={(conv as any).userStatus}
                 />
               )
             )

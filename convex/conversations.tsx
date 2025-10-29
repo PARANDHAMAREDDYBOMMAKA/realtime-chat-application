@@ -64,10 +64,24 @@ export const get = query({
 
           const otherMember = await ctx.db.get(otherMembership.memberId);
 
+          let userStatus: "online" | "offline" | "away" = "offline";
+          if (otherMember) {
+            const now = Date.now();
+            const lastSeen = otherMember.lastSeen || 0;
+            const timeDiff = now - lastSeen;
+
+            if (timeDiff <= 5 * 60 * 1000) {
+              userStatus = otherMember.status || "offline";
+            } else if (timeDiff <= 10 * 60 * 1000) {
+              userStatus = "away";
+            }
+          }
+
           return {
             conversation,
             otherMember,
             lastMessage,
+            userStatus,
           };
         }
       })

@@ -10,6 +10,7 @@ import {
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { motion } from "framer-motion";
 import React, { useState } from "react";
+import PresenceProvider from "@/components/providers/PresenceProvider";
 
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL || "";
 const convex = new ConvexReactClient(CONVEX_URL);
@@ -361,7 +362,9 @@ const ConvexClientProvider = ({ children }: { children: React.ReactNode }) => {
             </motion.div>
           </div>
         </AuthLoading>
-        <Authenticated>{children}</Authenticated>
+        <Authenticated>
+          <PresenceProvider>{children}</PresenceProvider>
+        </Authenticated>
         <Unauthenticated>
           {/* Main container with proper overflow handling */}
           <div className="relative h-screen overflow-auto bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950">

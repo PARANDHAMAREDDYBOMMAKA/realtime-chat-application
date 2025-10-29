@@ -14,6 +14,7 @@ type Props = {
   lstMsgSender?: string;
   lstMsgContent?: string;
   index?: number;
+  userStatus?: "online" | "offline" | "away";
 };
 
 const DMConversationItem = ({
@@ -23,7 +24,14 @@ const DMConversationItem = ({
   lstMsgContent,
   lstMsgSender,
   index = 0,
+  userStatus = "offline",
 }: Props) => {
+  // Status color mapping
+  const statusColors = {
+    online: "bg-green-500",
+    away: "bg-yellow-500",
+    offline: "bg-gray-400",
+  };
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -67,8 +75,27 @@ const DMConversationItem = ({
                   </AvatarFallback>
                 </Avatar>
 
-                {/* Status indicator - could be dynamic based on user status */}
-                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background"></span>
+                {/* Dynamic status indicator */}
+                <motion.span
+                  className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full ${statusColors[userStatus]} ring-2 ring-background`}
+                  animate={
+                    userStatus === "online"
+                      ? { scale: [1, 1.2, 1] }
+                      : undefined
+                  }
+                  transition={
+                    userStatus === "online"
+                      ? { duration: 2, repeat: Infinity }
+                      : undefined
+                  }
+                />
+                {userStatus === "online" && (
+                  <motion.span
+                    className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500"
+                    animate={{ scale: [1, 2, 1], opacity: [0.8, 0, 0.8] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                )}
               </motion.div>
 
               <div className="flex flex-col truncate w-full">

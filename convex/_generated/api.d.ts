@@ -22,6 +22,7 @@ import type * as friends from "../friends.js";
 import type * as http from "../http.js";
 import type * as message from "../message.js";
 import type * as messages from "../messages.js";
+import type * as presence from "../presence.js";
 import type * as request from "../request.js";
 import type * as requests from "../requests.js";
 import type * as rooms from "../rooms.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   message: typeof message;
   messages: typeof messages;
+  presence: typeof presence;
   request: typeof request;
   requests: typeof requests;
   rooms: typeof rooms;
