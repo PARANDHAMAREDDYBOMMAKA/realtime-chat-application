@@ -4,14 +4,11 @@ import React, { useState, useEffect } from "react";
 import {
   LiveKitRoom,
   VideoConference,
-  GridLayout,
-  ParticipantTile,
   RoomAudioRenderer,
   ControlBar,
-  useTracks,
 } from "@livekit/components-react";
 import "@livekit/components-styles";
-import { Track, RoomOptions, VideoPresets } from "livekit-client";
+import { RoomOptions, VideoPresets } from "livekit-client";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 
@@ -38,7 +35,7 @@ export default function VideoCall({
     dynacast: true,
     publishDefaults: {
       videoSimulcastLayers: [VideoPresets.h540, VideoPresets.h216],
-      screenShareEncoding: VideoPresets.h1080,
+      screenShareSimulcastLayers: [VideoPresets.h1080, VideoPresets.h720],
       stopMicTrackOnMute: false,
     },
     videoCaptureDefaults: {
@@ -150,7 +147,7 @@ export default function VideoCall({
                 </div>
                 <RoomAudioRenderer />
                 <div className="mt-8">
-                  <ControlBar variation="minimal" />
+                  <ControlBar variation="verbose" />
                 </div>
               </div>
             ) : (
