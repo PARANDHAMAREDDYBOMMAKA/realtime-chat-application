@@ -99,67 +99,65 @@ export default function VideoCall({
   }
 
   return (
-    <div className="fixed inset-0 bg-black z-50">
-      <div className="h-full w-full relative">
-        {/* Overlay Header */}
-        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/70 to-transparent">
-          <div>
-            <h2 className="text-lg font-semibold text-white">Video Call</h2>
-            <p className="text-sm text-white/70">{roomName}</p>
-          </div>
-          <Button
-            onClick={onLeave}
-            variant="ghost"
-            size="icon"
-            className="hover:bg-destructive/20 text-white hover:text-destructive"
-          >
-            <X className="h-6 w-6" />
-          </Button>
+    <div className="fixed inset-0 bg-black z-[9999] flex flex-col">
+      {/* Overlay Header */}
+      <div className="absolute top-0 left-0 right-0 z-[60] flex items-center justify-between p-4 bg-gradient-to-b from-black/70 to-transparent">
+        <div>
+          <h2 className="text-lg font-semibold text-white">Video Call</h2>
+          <p className="text-sm text-white/70">{roomName}</p>
         </div>
+        <Button
+          onClick={onLeave}
+          variant="ghost"
+          size="icon"
+          className="hover:bg-destructive/20 text-white hover:text-destructive"
+        >
+          <X className="h-6 w-6" />
+        </Button>
+      </div>
 
-        {/* Video Conference - Full Screen */}
-        <div className="h-full w-full overflow-hidden">
-          <LiveKitRoom
-            video={!audioOnly}
-            audio={true}
-            token={token}
-            serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
-            connect={true}
-            options={roomOptions}
-            data-lk-theme="default"
-            style={{ height: "100%" }}
-            onDisconnected={onLeave}
-            onError={(error) => {
-              console.error("LiveKit error:", error);
-              setError("Connection error occurred");
-            }}
-          >
-            {audioOnly ? (
-              <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-background via-primary/5 to-background">
-                <div className="text-center space-y-8">
-                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto shadow-2xl shadow-primary/20">
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
-                      <div className="w-12 h-12 rounded-full bg-primary animate-pulse shadow-lg shadow-primary/50" />
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold mb-2">Audio Call</p>
-                    <p className="text-base text-muted-foreground">Connected to {roomName}</p>
+      {/* Video Conference - Full Screen */}
+      <div className="flex-1 w-full h-full min-h-0">
+        <LiveKitRoom
+          video={!audioOnly}
+          audio={true}
+          token={token}
+          serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
+          connect={true}
+          options={roomOptions}
+          data-lk-theme="default"
+          style={{ height: "100%", width: "100%", display: "flex", flexDirection: "column" }}
+          onDisconnected={onLeave}
+          onError={(error) => {
+            console.error("LiveKit error:", error);
+            setError("Connection error occurred");
+          }}
+        >
+          {audioOnly ? (
+            <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-background via-primary/5 to-background">
+              <div className="text-center space-y-8">
+                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto shadow-2xl shadow-primary/20">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-primary animate-pulse shadow-lg shadow-primary/50" />
                   </div>
                 </div>
-                <RoomAudioRenderer />
-                <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2">
-                  <ControlBar variation="verbose" />
+                <div>
+                  <p className="text-2xl font-bold mb-2">Audio Call</p>
+                  <p className="text-base text-muted-foreground">Connected to {roomName}</p>
                 </div>
               </div>
-            ) : (
-              <>
-                <VideoConference />
-                <RoomAudioRenderer />
-              </>
-            )}
-          </LiveKitRoom>
-        </div>
+              <RoomAudioRenderer />
+              <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2">
+                <ControlBar variation="verbose" />
+              </div>
+            </div>
+          ) : (
+            <div className="h-full w-full flex flex-col">
+              <VideoConference />
+              <RoomAudioRenderer />
+            </div>
+          )}
+        </LiveKitRoom>
       </div>
     </div>
   );

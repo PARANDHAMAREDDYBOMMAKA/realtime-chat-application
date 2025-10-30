@@ -38,7 +38,7 @@ export default function IncomingCallNotification({
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        className="fixed inset-0 bg-background/95 backdrop-blur-xl z-50 flex items-center justify-center"
+        className="fixed inset-0 bg-background/95 backdrop-blur-xl z-[9999] flex items-center justify-center"
       >
         <div className="text-center space-y-8 p-8">
           {/* Caller Avatar with Ring Animation */}

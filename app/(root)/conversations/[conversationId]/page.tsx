@@ -151,23 +151,8 @@ const ConversationPage = ({ params }: Props) => {
 
   try {
     return (
-      <ConversationContainer>
-        {/* Render the appropriate dialog based on conversation type */}
-        {!conversation.isGroup ? (
-          <RemoveFriendDialog
-            conversationId={conversationId}
-            open={removeFriendDialog}
-            setOpen={setRemoveFriendDialog}
-          />
-        ) : (
-          <DeleteGroupDialog
-            conversationId={conversationId}
-            open={deleteGroupDialog}
-            setOpen={setDeleteGroupDialog}
-          />
-        )}
-
-        {/* Incoming Call Notification */}
+      <>
+        {/* Incoming Call Notification - Fullscreen overlay */}
         {activeCall?.status === "ringing" && !activeCall.isInitiator && conversation && (
           <IncomingCallNotification
             callerName={capitalizeName(
@@ -186,7 +171,7 @@ const ConversationPage = ({ params }: Props) => {
           />
         )}
 
-        {/* Outgoing Call Notification */}
+        {/* Outgoing Call Notification - Fullscreen overlay */}
         {activeCall?.status === "ringing" && activeCall.isInitiator && conversation && (
           <OutgoingCallNotification
             recipientName={capitalizeName(
@@ -204,7 +189,7 @@ const ConversationPage = ({ params }: Props) => {
           />
         )}
 
-        {/* Video/Audio Call Interface */}
+        {/* Video/Audio Call Interface - Fullscreen overlay */}
         {isInCall && activeCall && conversation && user && (
           <VideoCall
             roomName={conversationId}
@@ -214,48 +199,65 @@ const ConversationPage = ({ params }: Props) => {
           />
         )}
 
-        {conversation && (
-          <Header
-            imageUrl={
-              conversation.isGroup
-                ? undefined
-                : conversation.otherMember?.imageUrl
-            }
-            name={capitalizeName(
-              conversation.isGroup
-                ? conversation.name || ""
-                : conversation.otherMember?.username || ""
-            )}
-            options={
-              conversation.isGroup
-                ? [
-                    {
-                      label: "Leave Group",
-                      destructive: false,
-                      onClick: () => setLeaveGroupDialog(true),
-                    },
-                    {
-                      label: "Delete Group",
-                      destructive: true,
-                      onClick: () => setDeleteGroupDialog(true),
-                    },
-                  ]
-                : [
-                    {
-                      label: "Remove Friend",
-                      destructive: true,
-                      onClick: () => setRemoveFriendDialog(true),
-                    },
-                  ]
-            }
-            onVideoCall={handleStartVideoCall}
-            onAudioCall={handleStartAudioCall}
-          />
-        )}
+        <ConversationContainer>
+          {/* Render the appropriate dialog based on conversation type */}
+          {!conversation.isGroup ? (
+            <RemoveFriendDialog
+              conversationId={conversationId}
+              open={removeFriendDialog}
+              setOpen={setRemoveFriendDialog}
+            />
+          ) : (
+            <DeleteGroupDialog
+              conversationId={conversationId}
+              open={deleteGroupDialog}
+              setOpen={setDeleteGroupDialog}
+            />
+          )}
 
-        <Body conversationId={conversationId} />
-        <ChatInput conversationId={conversationId} />
-      </ConversationContainer>
+          {conversation && (
+            <Header
+              imageUrl={
+                conversation.isGroup
+                  ? undefined
+                  : conversation.otherMember?.imageUrl
+              }
+              name={capitalizeName(
+                conversation.isGroup
+                  ? conversation.name || ""
+                  : conversation.otherMember?.username || ""
+              )}
+              options={
+                conversation.isGroup
+                  ? [
+                      {
+                        label: "Leave Group",
+                        destructive: false,
+                        onClick: () => setLeaveGroupDialog(true),
+                      },
+                      {
+                        label: "Delete Group",
+                        destructive: true,
+                        onClick: () => setDeleteGroupDialog(true),
+                      },
+                    ]
+                  : [
+                      {
+                        label: "Remove Friend",
+                        destructive: true,
+                        onClick: () => setRemoveFriendDialog(true),
+                      },
+                    ]
+              }
+              onVideoCall={handleStartVideoCall}
+              onAudioCall={handleStartAudioCall}
+            />
+          )}
+
+          <Body conversationId={conversationId} />
+          <ChatInput conversationId={conversationId} />
+        </ConversationContainer>
+      </>
     );
   } catch (error: unknown) {
     console.error("Error loading conversation:", error);
