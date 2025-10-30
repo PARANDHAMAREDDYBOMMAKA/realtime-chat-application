@@ -70,7 +70,7 @@ const AddFriendDialog = () => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <Tooltip>
-        <TooltipTrigger>
+        <TooltipTrigger asChild>
           <DialogTrigger asChild>
             <Button size="icon" variant="outline">
               <UserPlus />

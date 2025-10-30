@@ -52,7 +52,7 @@ const MobileNav = () => {
                 >
                   <Link href={path.href}>
                     <Tooltip>
-                      <TooltipTrigger>
+                      <TooltipTrigger asChild>
                         <Button
                           size="icon"
                           variant={path.active ? "default" : "ghost"}
@@ -85,12 +85,12 @@ const MobileNav = () => {
                               }}
                             />
                           )}
+                          {path.count ? (
+                            <Badge className="absolute -top-1 -right-1 px-1.5 py-0.5 text-xs animate-pulse bg-gradient-to-r from-red-500 to-red-600 text-white shadow-sm border-2 border-background min-w-[18px] h-[18px] flex items-center justify-center">
+                              {path.count}
+                            </Badge>
+                          ) : null}
                         </Button>
-                        {path.count ? (
-                          <Badge className="absolute -top-1 -right-1 px-1.5 py-0.5 text-xs animate-pulse bg-gradient-to-r from-red-500 to-red-600 text-white shadow-sm border-2 border-background min-w-[18px] h-[18px] flex items-center justify-center">
-                            {path.count}
-                          </Badge>
-                        ) : null}
                       </TooltipTrigger>
                       <TooltipContent className="bg-popover/95 text-popover-foreground px-3 py-1.5 rounded-md shadow-md backdrop-blur-sm border border-border/30">
                         <p>{path.name}</p>

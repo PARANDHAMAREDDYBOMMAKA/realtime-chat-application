@@ -46,6 +46,8 @@ const ConversationsLayout = ({ children }: Props) => {
                   name={conv.conversation.name || ""}
                   lstMsgContent={conv.lastMessage?.content}
                   lstMsgSender={conv.lastMessage?.sender}
+                  lstMsgType={conv.lastMessage?.type}
+                  unreadCount={(conv as any).unreadCount || 0}
                 />
               ) : (
                 <DMConversationItem
@@ -55,7 +57,9 @@ const ConversationsLayout = ({ children }: Props) => {
                   username={conv.otherMember?.username || ""}
                   lstMsgContent={conv.lastMessage?.content}
                   lstMsgSender={conv.lastMessage?.sender}
+                  lstMsgType={conv.lastMessage?.type}
                   userStatus={(conv as any).userStatus}
+                  unreadCount={(conv as any).unreadCount || 0}
                 />
               )
             )

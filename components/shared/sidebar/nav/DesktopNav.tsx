@@ -52,7 +52,7 @@ const DesktopNav = () => {
                 >
                   <Link href={path.href} className="w-full flex justify-center">
                     <Tooltip>
-                      <TooltipTrigger className="w-full flex justify-center">
+                      <TooltipTrigger asChild>
                         <Button
                           size="icon"
                           variant={path.active ? "default" : "outline"}
@@ -85,13 +85,13 @@ const DesktopNav = () => {
                               }}
                             />
                           )}
+                          {path.count ? (
+                            <Badge className="absolute right-0 top-0 px-2 bg-gradient-to-r from-primary to-primary/80 shadow-sm shadow-primary/20">
+                              {path.count}
+                            </Badge>
+                          ) : null}
                         </Button>
                       </TooltipTrigger>
-                      {path.count ? (
-                        <Badge className="absolute right-0 top-0 px-2 bg-gradient-to-r from-primary to-primary/80 shadow-sm shadow-primary/20">
-                          {path.count}
-                        </Badge>
-                      ) : null}
                       <TooltipContent
                         side="right"
                         className="bg-popover/95 text-popover-foreground px-3 py-1.5 rounded-md shadow-md backdrop-blur-sm border border-border/30"

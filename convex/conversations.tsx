@@ -55,8 +55,46 @@ export const get = query({
           id: conversation.lastMessageId,
         });
 
+        const currentUserMembership = conversationMemberships.find(
+          (m) => m.conversationId === conversation._id
+        );
+
+        let unreadCount = 0;
+        if (currentUserMembership && conversation.lastMessageId) {
+          const lastSeenMessageId = currentUserMembership.lastSeenMessage;
+
+          if (!lastSeenMessageId) {
+            const allMessages = await ctx.db
+              .query("messages")
+              .withIndex("by_conversationId", (q) =>
+                q.eq("conversationId", conversation._id)
+              )
+              .filter((q) => q.neq(q.field("senderId"), currentUser._id))
+              .collect();
+            unreadCount = allMessages.length;
+          } else {
+            const lastSeenMessage = await ctx.db.get(lastSeenMessageId);
+            if (lastSeenMessage) {
+              const lastSeenTime = lastSeenMessage.createdAt ?? lastSeenMessage._creationTime;
+              const unreadMessages = await ctx.db
+                .query("messages")
+                .withIndex("by_conversationId", (q) =>
+                  q.eq("conversationId", conversation._id)
+                )
+                .filter((q) =>
+                  q.and(
+                    q.gt(q.field("createdAt"), lastSeenTime),
+                    q.neq(q.field("senderId"), currentUser._id)
+                  )
+                )
+                .collect();
+              unreadCount = unreadMessages.length;
+            }
+          }
+        }
+
         if (conversation.isGroup) {
-          return { conversation, lastMessage };
+          return { conversation, lastMessage, unreadCount };
         } else {
           const otherMembership = allConversationMemberships.filter(
             (membership) => membership.memberId !== currentUser._id
@@ -82,6 +120,7 @@ export const get = query({
             otherMember,
             lastMessage,
             userStatus,
+            unreadCount,
           };
         }
       })
@@ -120,13 +159,26 @@ const getLastMessageDetails = async ({
     content,
     sender: sender.username,
     timestamp: message.createdAt ?? message._creationTime,
+    type: message.type,
   };
 };
 
-const getMessageContent = (type: string, content: string) => {
+const getMessageContent = (type: string, content: string | string[]) => {
   switch (type) {
     case "text":
-      return content;
+      return typeof content === "string" ? content : content[0] || "";
+    case "image":
+      return "Photo";
+    case "video":
+      return "Video";
+    case "audio":
+      return "Audio";
+    case "file":
+      // Try to get filename if content is an array
+      if (Array.isArray(content) && content[1]) {
+        return content[1];
+      }
+      return "File";
     default:
       return "[Non-text]";
   }
