@@ -55,8 +55,11 @@ export default function Body({ conversationId }: BodyProps) {
     }
   }, [messages, conversationId, user, updateLastSeenMessage]);
 
-  // Get the lastSeenMessageId from the other user (for 1:1)
-  const lastSeenMessageId = conversation?.otherMember?.lastSeenMessageId;
+  // Get the lastSeenMessageId from the other user (for 1:1 only)
+  // Don't show read receipts for group conversations
+  const lastSeenMessageId = !conversation?.isGroup
+    ? conversation?.otherMember?.lastSeenMessageId
+    : undefined;
 
   if (!conversationId) {
     return null;
@@ -71,13 +74,19 @@ export default function Body({ conversationId }: BodyProps) {
             messages[index - 1]?.message.senderId ===
             messages[index].message.senderId;
 
-          // Seen logic: only for messages from current user
+          // Seen logic: only for messages from current user in 1:1 conversations
+          // Don't show read receipts for group conversations (pass undefined to hide completely)
           // Messages are sorted newest first (desc), so higher index = older messages
           // If they've seen message at index X, they've also seen all indices > X
           const lastSeenIndex = lastSeenMessageId
             ? messages.findIndex(m => m.message._id === lastSeenMessageId)
             : -1;
-          const seen = isCurrentUser && lastSeenIndex !== -1 && index >= lastSeenIndex;
+
+          // For group chats, return undefined to completely hide read receipts
+          // For 1:1 chats, return boolean to show single/double check
+          const seen = conversation?.isGroup
+            ? undefined
+            : (isCurrentUser && lastSeenIndex !== -1 && index >= lastSeenIndex);
 
           // Check if we need to show a date separator
           const currentDate = new Date(message.createdAt || message._creationTime);

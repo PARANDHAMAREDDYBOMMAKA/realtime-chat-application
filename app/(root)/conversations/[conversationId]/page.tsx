@@ -9,6 +9,8 @@ import Body from "./_components/body/Body";
 import ChatInput from "./_components/input/ChatInput";
 import RemoveFriendDialog from "./_components/dialogs/RemoveFriendDialog";
 import DeleteGroupDialog from "./_components/dialogs/DeleteGroupDialog";
+import LeaveGroupDialog from "./_components/dialogs/LeaveGroupDialog";
+import AddMembersDialog from "./_components/dialogs/AddMembersDialog";
 import EnhancedLoading from "@/components/shared/EnhancedLoading";
 import VideoCall from "./_components/VideoCall";
 import IncomingCallNotification from "./_components/IncomingCallNotification";
@@ -49,18 +51,20 @@ const ConversationPage = ({ params }: Props) => {
   const startCall = useMutation(api.call.start);
   const acceptCall = useMutation(api.call.accept);
   const rejectCall = useMutation(api.call.reject);
+  const leaveCall = useMutation(api.call.leave);
   const endCall = useMutation(api.call.end);
 
   const [removeFriendDialog, setRemoveFriendDialog] = useState(false);
   const [deleteGroupDialog, setDeleteGroupDialog] = useState(false);
   const [leaveGroupDialog, setLeaveGroupDialog] = useState(false);
+  const [addMembersDialog, setAddMembersDialog] = useState(false);
   const [isInCall, setIsInCall] = useState(false);
 
-  // Update isInCall based on activeCall status
+  // Update isInCall based on activeCall status and participant status
   useEffect(() => {
-    if (activeCall?.status === "active") {
+    if (activeCall?.status === "active" && activeCall?.isParticipant) {
       setIsInCall(true);
-    } else if (activeCall?.status === "ended") {
+    } else if (activeCall?.status === "ended" || !activeCall?.isParticipant) {
       setIsInCall(false);
     }
   }, [activeCall]);
@@ -111,11 +115,11 @@ const ConversationPage = ({ params }: Props) => {
   const handleLeaveCall = async () => {
     try {
       if (!activeCall) return;
-      await endCall({ callId: activeCall._id });
+      await leaveCall({ callId: activeCall._id });
       setIsInCall(false);
     } catch (error) {
-      toast.error("Failed to end call");
-      console.error("Error ending call:", error);
+      toast.error("Failed to leave call");
+      console.error("Error leaving call:", error);
     }
   };
 
@@ -153,7 +157,9 @@ const ConversationPage = ({ params }: Props) => {
     return (
       <>
         {/* Incoming Call Notification - Fullscreen overlay */}
-        {activeCall?.status === "ringing" && !activeCall.isInitiator && conversation && (
+        {((activeCall?.status === "ringing" && !activeCall.isInitiator) ||
+          (activeCall?.status === "active" && conversation?.isGroup && !activeCall.isParticipant)) &&
+          !activeCall.isParticipant && !activeCall.hasLeft && conversation && (
           <IncomingCallNotification
             callerName={capitalizeName(
               conversation.isGroup
@@ -172,7 +178,7 @@ const ConversationPage = ({ params }: Props) => {
         )}
 
         {/* Outgoing Call Notification - Fullscreen overlay */}
-        {activeCall?.status === "ringing" && activeCall.isInitiator && conversation && (
+        {activeCall?.status === "ringing" && activeCall.isInitiator && activeCall.isParticipant && conversation && (
           <OutgoingCallNotification
             recipientName={capitalizeName(
               conversation.isGroup
@@ -208,11 +214,23 @@ const ConversationPage = ({ params }: Props) => {
               setOpen={setRemoveFriendDialog}
             />
           ) : (
-            <DeleteGroupDialog
-              conversationId={conversationId}
-              open={deleteGroupDialog}
-              setOpen={setDeleteGroupDialog}
-            />
+            <>
+              <LeaveGroupDialog
+                conversationId={conversationId}
+                open={leaveGroupDialog}
+                setOpen={setLeaveGroupDialog}
+              />
+              <DeleteGroupDialog
+                conversationId={conversationId}
+                open={deleteGroupDialog}
+                setOpen={setDeleteGroupDialog}
+              />
+              <AddMembersDialog
+                conversationId={conversationId}
+                open={addMembersDialog}
+                setOpen={setAddMembersDialog}
+              />
+            </>
           )}
 
           {conversation && (
@@ -230,6 +248,11 @@ const ConversationPage = ({ params }: Props) => {
               options={
                 conversation.isGroup
                   ? [
+                      {
+                        label: "Add Members",
+                        destructive: false,
+                        onClick: () => setAddMembersDialog(true),
+                      },
                       {
                         label: "Leave Group",
                         destructive: false,

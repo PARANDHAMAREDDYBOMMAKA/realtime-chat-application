@@ -76,6 +76,14 @@ export default defineSchema({
         endedAt: v.optional(v.number()),
     }).index("by_conversationId", ["conversationId"]).index("by_status", ["status"]).index("by_conversation_status", ["conversationId", "status"]),
 
+    callParticipants: defineTable({
+        callId: v.id("calls"),
+        userId: v.id("users"),
+        joinedAt: v.number(),
+        leftAt: v.optional(v.number()),
+        status: v.union(v.literal("joined"), v.literal("left")),
+    }).index("by_callId", ["callId"]).index("by_userId", ["userId"]).index("by_call_user", ["callId", "userId"]).index("by_call_status", ["callId", "status"]),
+
     reactions: defineTable({
         messageId: v.id("messages"),
         userId: v.id("users"),

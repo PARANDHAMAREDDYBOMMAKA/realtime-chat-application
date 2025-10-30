@@ -40,7 +40,7 @@ const Message = ({
 
   const fileUrl = useQuery(
     api.files.getUrl,
-    type !== "text" && content[0] ? { storageId: content[0] } : "skip"
+    type !== "text" && type !== "system" && content[0] ? { storageId: content[0] } : "skip"
   );
 
   const reactions = useQuery(
@@ -54,6 +54,17 @@ const Message = ({
   useEffect(() => {
     setIsVisible(true);
   }, []);
+
+  // Render system messages (like "User left the group") differently
+  if (type === "system") {
+    return (
+      <div className="flex items-center justify-center my-2">
+        <div className="bg-muted/60 backdrop-blur-sm text-muted-foreground text-xs px-3 py-1.5 rounded-full shadow-sm border border-border/30">
+          {content[0]}
+        </div>
+      </div>
+    );
+  }
 
   const handleDelete = async () => {
     try {
@@ -237,8 +248,8 @@ const Message = ({
               {formatTime(createdAt)}
             </span>
 
-            {/* Read status for current user messages */}
-            {fromCurrentUser && (
+            {/* Read status for current user messages (only in 1:1 chats) */}
+            {fromCurrentUser && seen !== undefined && (
               <div className="flex items-center">
                 {seen ? (
                   <CheckCheck className="w-3 h-3 text-green-400 opacity-80" />
