@@ -99,26 +99,26 @@ export default function VideoCall({
   }
 
   return (
-    <div className="fixed inset-0 bg-background z-50">
-      <div className="h-full w-full flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b bg-card">
+    <div className="fixed inset-0 bg-black z-50">
+      <div className="h-full w-full relative">
+        {/* Overlay Header */}
+        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/70 to-transparent">
           <div>
-            <h2 className="text-lg font-semibold">Video Call</h2>
-            <p className="text-sm text-muted-foreground">{roomName}</p>
+            <h2 className="text-lg font-semibold text-white">Video Call</h2>
+            <p className="text-sm text-white/70">{roomName}</p>
           </div>
           <Button
             onClick={onLeave}
             variant="ghost"
             size="icon"
-            className="hover:bg-destructive/10 hover:text-destructive"
+            className="hover:bg-destructive/20 text-white hover:text-destructive"
           >
-            <X className="h-5 w-5" />
+            <X className="h-6 w-6" />
           </Button>
         </div>
 
-        {/* Video Conference */}
-        <div className="flex-1 overflow-hidden">
+        {/* Video Conference - Full Screen */}
+        <div className="h-full w-full overflow-hidden">
           <LiveKitRoom
             video={!audioOnly}
             audio={true}
@@ -135,18 +135,20 @@ export default function VideoCall({
             }}
           >
             {audioOnly ? (
-              <div className="h-full flex flex-col items-center justify-center">
-                <div className="text-center space-y-4">
-                  <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                    <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
-                      <div className="w-8 h-8 rounded-full bg-primary animate-pulse" />
+              <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-background via-primary/5 to-background">
+                <div className="text-center space-y-8">
+                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto shadow-2xl shadow-primary/20">
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-primary animate-pulse shadow-lg shadow-primary/50" />
                     </div>
                   </div>
-                  <p className="text-lg font-medium">Audio Call</p>
-                  <p className="text-sm text-muted-foreground">Connected to {roomName}</p>
+                  <div>
+                    <p className="text-2xl font-bold mb-2">Audio Call</p>
+                    <p className="text-base text-muted-foreground">Connected to {roomName}</p>
+                  </div>
                 </div>
                 <RoomAudioRenderer />
-                <div className="mt-8">
+                <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2">
                   <ControlBar variation="verbose" />
                 </div>
               </div>

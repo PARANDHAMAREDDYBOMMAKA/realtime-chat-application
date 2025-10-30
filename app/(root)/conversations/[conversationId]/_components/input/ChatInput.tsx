@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { SendHorizontal, Smile, Paperclip, Mic, X, Square, Image, Video, FileText } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
 import { motion, AnimatePresence } from "framer-motion";
-import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
+import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "next-themes";
 
 interface ChatInputProps {
   conversationId: Id<"conversations">;
@@ -25,38 +26,40 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
   const [recordingTime, setRecordingTime] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isCancelledRef = useRef<boolean>(false);
 
   const { user } = useUser();
   const { toast } = useToast();
+  const { theme, systemTheme } = useTheme();
   const createMessage = useMutation(api.message.create);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const { startTyping, stopTyping } = useTyping({ conversationId });
 
+  // Determine the current theme for emoji picker
+  const currentTheme = theme === "system" ? systemTheme : theme;
+  const emojiTheme = (currentTheme === "dark" ? "dark" : "light") as Theme;
+
   const handleTyping = () => {
     startTyping();
-    // Note: Don't show local typing indicator for the current user
-    // The typing indicator should only be visible to other users
   };
 
-  // Emoji picker handler
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     setMessage((prev) => prev + emojiData.emoji);
     setShowEmojiPicker(false);
     textareaRef.current?.focus();
   };
 
-  // File upload handler
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast({
         title: "File too large",
@@ -133,6 +136,7 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
+      isCancelledRef.current = false;
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -141,20 +145,25 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        const audioFile = new File([audioBlob], `audio-${Date.now()}.webm`, {
-          type: "audio/webm",
-        });
+        // Only upload if not cancelled
+        if (!isCancelledRef.current) {
+          const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+          const audioFile = new File([audioBlob], `audio-${Date.now()}.webm`, {
+            type: "audio/webm",
+          });
 
-        await uploadFile(audioFile);
+          await uploadFile(audioFile);
+        }
 
         // Stop all tracks
         stream.getTracks().forEach((track) => track.stop());
+        audioChunksRef.current = [];
       };
 
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingTime(0);
+      setShowRecordingPrompt(false);
 
       // Start timer
       recordingIntervalRef.current = setInterval(() => {
@@ -177,6 +186,7 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      isCancelledRef.current = false;
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       setRecordingTime(0);
@@ -190,6 +200,7 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
 
   const cancelRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      isCancelledRef.current = true;
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       setRecordingTime(0);
@@ -209,6 +220,14 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
         title: "Recording cancelled",
         description: "Audio recording was cancelled",
       });
+    }
+  };
+
+  const handleMicClick = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      setShowRecordingPrompt(true);
     }
   };
 
@@ -254,8 +273,77 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
     }
   }, [message]);
 
+  // Handle ESC key to close recording prompt
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && showRecordingPrompt) {
+        setShowRecordingPrompt(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [showRecordingPrompt]);
+
   return (
     <div className="relative p-4 bg-gradient-to-t from-background/95 to-background/80 backdrop-blur-sm border-t border-border/30">
+      <AnimatePresence>
+        {showRecordingPrompt && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+              onClick={() => setShowRecordingPrompt(false)}
+            />
+
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="fixed top-[-50px] left-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] w-[90%] max-w-md"
+            >
+              <div className="bg-card border border-border rounded-2xl shadow-2xl p-8 text-center space-y-6">
+                <motion.div
+                  className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto"
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <Mic className="h-10 w-10 text-primary" />
+                </motion.div>
+                <div>
+                  <h3 className="text-xl font-semibold mb-2">Record Audio Message</h3>
+                  <p className="text-muted-foreground text-sm">
+                    Do you want to start recording?
+                  </p>
+                </div>
+                <div className="flex gap-3 justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowRecordingPrompt(false)}
+                    className="gap-2 flex-1"
+                  >
+                    <X className="h-4 w-4" />
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={startRecording}
+                    className="gap-2 flex-1 bg-primary hover:bg-primary/90"
+                  >
+                    <Mic className="h-4 w-4" />
+                    Start
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Emoji Picker */}
       <AnimatePresence>
         {showEmojiPicker && (
@@ -267,6 +355,7 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
           >
             <EmojiPicker
               onEmojiClick={handleEmojiClick}
+              theme={emojiTheme}
               searchDisabled
               skinTonesDisabled
               height={400}
@@ -416,7 +505,7 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={isRecording ? stopRecording : startRecording}
+                  onClick={handleMicClick}
                   disabled={isUploading}
                   className={`h-8 w-8 rounded-full transition-all duration-200 ${
                     isRecording

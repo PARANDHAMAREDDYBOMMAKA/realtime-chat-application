@@ -50,9 +50,9 @@ export default function IncomingCallNotification({
               transition={{ duration: 1, repeat: Infinity }}
               className="absolute inset-0 rounded-full bg-primary/20 blur-2xl"
             />
-            <Avatar className="h-32 w-32 mx-auto relative border-4 border-primary/50">
-              <AvatarImage src={callerImage} />
-              <AvatarFallback className="text-4xl">
+            <Avatar className="h-32 w-32 rounded-full mx-auto relative border-4 border-primary/50">
+              <AvatarImage src={callerImage} className="rounded-full object-cover" />
+              <AvatarFallback className="rounded-full text-4xl">
                 {callerName.substring(0, 1).toUpperCase()}
               </AvatarFallback>
             </Avatar>

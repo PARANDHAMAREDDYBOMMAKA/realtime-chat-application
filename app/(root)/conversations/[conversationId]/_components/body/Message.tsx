@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Check, CheckCheck, Download, FileText, Music } from "lucide-react";
+import { Check, CheckCheck, Download, FileText } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import AudioPlayer from "./AudioPlayer";
 
 type Props = {
   fromCurrentUser: boolean;
@@ -63,13 +64,13 @@ const Message = ({
       {/* Avatar for non-current user messages */}
       {!fromCurrentUser && (
         <Avatar
-          className={cn("h-8 w-8 ring-2 ring-border/20 transition-all duration-200", {
+          className={cn("h-8 w-8 rounded-full ring-2 ring-border/20 transition-all duration-200", {
             "invisible": lastByUser,
             "hover:ring-primary/50": !lastByUser
           })}
         >
-          <AvatarImage src={senderImage} alt={senderName} />
-          <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
+          <AvatarImage src={senderImage} alt={senderName} className="rounded-full object-cover" />
+          <AvatarFallback className="rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
             {senderName.charAt(0)}
           </AvatarFallback>
         </Avatar>
@@ -153,16 +154,9 @@ const Message = ({
           {/* Audio message */}
           {type === "audio" && fileUrl && (
             <div className="space-y-2">
-              <div className="flex items-center gap-3 min-w-[250px]">
-                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Music className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <audio src={fileUrl} controls className="w-full h-8" />
-                </div>
-              </div>
+              <AudioPlayer audioUrl={fileUrl} fromCurrentUser={fromCurrentUser} />
               {content[1] && (
-                <p className="text-xs opacity-70">{content[1]}</p>
+                <p className="text-xs opacity-60 truncate px-1">{content[1]}</p>
               )}
             </div>
           )}
@@ -233,13 +227,13 @@ const Message = ({
       {/* Avatar for current user messages */}
       {fromCurrentUser && (
         <Avatar
-          className={cn("h-8 w-8 ring-2 ring-primary/20 transition-all duration-200", {
+          className={cn("h-8 w-8 rounded-full ring-2 ring-primary/20 transition-all duration-200", {
             "invisible": lastByUser,
             "hover:ring-primary/50": !lastByUser
           })}
         >
-          <AvatarImage src={senderImage} alt={senderName} />
-          <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
+          <AvatarImage src={senderImage} alt={senderName} className="rounded-full object-cover" />
+          <AvatarFallback className="rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
             {senderName.charAt(0)}
           </AvatarFallback>
         </Avatar>

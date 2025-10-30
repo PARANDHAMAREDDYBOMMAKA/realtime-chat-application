@@ -27,20 +27,19 @@ type Props = {
 
 const Header = ({ imageUrl, name, options, onVideoCall, onAudioCall }: Props) => {
   return (
-    <Card className="w-full flex rounded-lg items-center p-1 justify-center relative">
-      <Link href="/conversations" className="absolute left-2 block lg:hidden">
-        <CircleArrowLeft />
-      </Link>
-
-      <div className="flex items-center gap-2">
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={imageUrl} />
-          <AvatarFallback>{name.substring(0, 1)}</AvatarFallback>
+    <Card className="w-full flex-row rounded-lg items-center p-2 justify-between">
+      <div className="flex items-center gap-3">
+        <Link href="/conversations" className="block lg:hidden">
+          <CircleArrowLeft />
+        </Link>
+        <Avatar className="h-10 w-10 rounded-full ring-2 ring-border/20 transition-all hover:ring-primary/30">
+          <AvatarImage src={imageUrl} className="rounded-full object-cover" />
+          <AvatarFallback className="rounded-full">{name.substring(0, 1)}</AvatarFallback>
         </Avatar>
-        <h2 className="font-semibold">{name}</h2>
+        <h2 className="font-semibold text-lg">{name}</h2>
       </div>
 
-      <div className="absolute right-2 flex items-center gap-2">
+      <div className="flex items-center gap-2">
         {/* Video Call Button */}
         {onVideoCall && (
           <Button
