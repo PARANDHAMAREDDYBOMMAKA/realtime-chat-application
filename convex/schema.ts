@@ -76,4 +76,11 @@ export default defineSchema({
         endedAt: v.optional(v.number()),
     }).index("by_conversationId", ["conversationId"]).index("by_status", ["status"]).index("by_conversation_status", ["conversationId", "status"]),
 
+    reactions: defineTable({
+        messageId: v.id("messages"),
+        userId: v.id("users"),
+        emoji: v.string(),
+        createdAt: v.number(),
+    }).index("by_messageId", ["messageId"]).index("by_userId", ["userId"]).index("by_message_user", ["messageId", "userId"]),
+
 })

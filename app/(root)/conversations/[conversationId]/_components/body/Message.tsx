@@ -3,11 +3,17 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Check, CheckCheck, Download, FileText } from "lucide-react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import AudioPlayer from "./AudioPlayer";
+import MessageActions from "./MessageActions";
+import MessageReactions from "./MessageReactions";
+import ReactionPicker from "./ReactionPicker";
+import { toast } from "sonner";
 
 type Props = {
+  messageId: Id<"messages">;
   fromCurrentUser: boolean;
   senderImage: string;
   senderName: string;
@@ -19,6 +25,7 @@ type Props = {
 };
 
 const Message = ({
+  messageId,
   fromCurrentUser,
   senderImage,
   senderName,
@@ -29,16 +36,43 @@ const Message = ({
   seen,
 }: Props) => {
   const [isVisible, setIsVisible] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
 
-  // Get file URL from storage ID for media messages
   const fileUrl = useQuery(
     api.files.getUrl,
     type !== "text" && content[0] ? { storageId: content[0] } : "skip"
   );
 
+  const reactions = useQuery(
+    api.reactions.getMessageReactions,
+    messageId ? { messageId } : "skip"
+  );
+
+  const deleteMessage = useMutation(api.message.deleteMessage);
+  const addReaction = useMutation(api.reactions.addReaction);
+
   useEffect(() => {
     setIsVisible(true);
   }, []);
+
+  const handleDelete = async () => {
+    try {
+      await deleteMessage({ messageId });
+      toast.success("Message deleted");
+    } catch (error) {
+      toast.error("Failed to delete message");
+      console.error(error);
+    }
+  };
+
+  const handleAddReaction = async (emoji: string) => {
+    try {
+      await addReaction({ messageId, emoji });
+    } catch (error) {
+      toast.error("Failed to add reaction");
+      console.error(error);
+    }
+  };
 
   const formatTime = (timeStamp: number) => {
     return format(timeStamp, "HH:mm");
@@ -89,25 +123,27 @@ const Message = ({
           </span>
         )}
 
-        {/* Message bubble */}
-        <div
-          className={cn(
-            "relative px-4 py-3 rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md group",
-            {
-              // Current user styling
-              "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground shadow-primary/20": fromCurrentUser,
-              "rounded-br-md": fromCurrentUser && !lastByUser,
+        {/* Message bubble with actions */}
+        <div className="relative group">
+          {/* Message bubble */}
+          <div
+            className={cn(
+              "relative px-4 py-3 rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md",
+              {
+                // Current user styling
+                "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground shadow-primary/20": fromCurrentUser,
+                "rounded-br-md": fromCurrentUser && !lastByUser,
 
-              // Other user styling
-              "bg-gradient-to-br from-muted to-muted/80 text-foreground border border-border/50": !fromCurrentUser,
-              "rounded-bl-md": !fromCurrentUser && !lastByUser,
+                // Other user styling
+                "bg-gradient-to-br from-muted to-muted/80 text-foreground border border-border/50": !fromCurrentUser,
+                "rounded-bl-md": !fromCurrentUser && !lastByUser,
 
-              // Hover effects
-              "hover:shadow-primary/30": fromCurrentUser,
-              "hover:border-primary/30": !fromCurrentUser,
-            }
-          )}
-        >
+                // Hover effects
+                "hover:shadow-primary/30": fromCurrentUser,
+                "hover:border-primary/30": !fromCurrentUser,
+              }
+            )}
+          >
           {/* Message content */}
           {type === "text" && (
             <div className="space-y-1">
@@ -221,6 +257,31 @@ const Message = ({
               "hidden": lastByUser
             })}
           />
+
+          {/* Message actions - positioned as overlay */}
+          <div className={cn("absolute -top-3 z-20", {
+            "right-2": fromCurrentUser,
+            "left-2": !fromCurrentUser,
+          })}>
+            <ReactionPicker onSelect={handleAddReaction}>
+              <div className="inline-block">
+                <MessageActions
+                  onDelete={handleDelete}
+                  onReact={() => setShowReactionPicker(!showReactionPicker)}
+                  fromCurrentUser={fromCurrentUser}
+                />
+              </div>
+            </ReactionPicker>
+          </div>
+          </div>
+
+          {/* Reactions display */}
+          {reactions && reactions.length > 0 && (
+            <MessageReactions
+              reactions={reactions}
+              onToggleReaction={handleAddReaction}
+            />
+          )}
         </div>
       </div>
 

@@ -90,6 +90,7 @@ export default function Body({ conversationId }: BodyProps) {
           return (
             <React.Fragment key={message._id}>
               <Message
+                messageId={message._id}
                 fromCurrentUser={isCurrentUser}
                 senderImage={senderImage}
                 senderName={capitalizeName(senderName)}
