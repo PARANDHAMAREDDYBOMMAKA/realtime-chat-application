@@ -24,6 +24,7 @@
     "clsx": "^2.1.1",
     "convex": "^1.19.5",
     "date-fns": "^4.1.0",
+    "emoji-picker-react": "^4.15.0",
     "framer-motion": "^12.5.0",
     "livekit-client": "^2.15.14",
     "livekit-server-sdk": "^2.14.0",

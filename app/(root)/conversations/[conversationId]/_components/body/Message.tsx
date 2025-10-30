@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Check, CheckCheck } from "lucide-react";
+import { Check, CheckCheck, Download, FileText, Music } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 type Props = {
   fromCurrentUser: boolean;
@@ -27,12 +29,24 @@ const Message = ({
 }: Props) => {
   const [isVisible, setIsVisible] = useState(false);
 
+  // Get file URL from storage ID for media messages
+  const fileUrl = useQuery(
+    api.files.getUrl,
+    type !== "text" && content[0] ? { storageId: content[0] } : "skip"
+  );
+
   useEffect(() => {
     setIsVisible(true);
   }, []);
 
   const formatTime = (timeStamp: number) => {
     return format(timeStamp, "HH:mm");
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
   return (
@@ -100,6 +114,81 @@ const Message = ({
                 {content}
               </p>
             </div>
+          )}
+
+          {/* Image message */}
+          {type === "image" && fileUrl && (
+            <div className="space-y-2">
+              <div className="relative max-w-sm rounded-lg overflow-hidden">
+                <img
+                  src={fileUrl}
+                  alt={content[1] || "Image"}
+                  className="w-full h-auto object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => window.open(fileUrl, "_blank")}
+                />
+              </div>
+              {content[1] && (
+                <p className="text-xs opacity-70">{content[1]}</p>
+              )}
+            </div>
+          )}
+
+          {/* Video message */}
+          {type === "video" && fileUrl && (
+            <div className="space-y-2">
+              <div className="relative max-w-sm rounded-lg overflow-hidden">
+                <video
+                  src={fileUrl}
+                  controls
+                  className="w-full h-auto rounded-lg"
+                  style={{ maxHeight: "400px" }}
+                />
+              </div>
+              {content[1] && (
+                <p className="text-xs opacity-70">{content[1]}</p>
+              )}
+            </div>
+          )}
+
+          {/* Audio message */}
+          {type === "audio" && fileUrl && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 min-w-[250px]">
+                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Music className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <audio src={fileUrl} controls className="w-full h-8" />
+                </div>
+              </div>
+              {content[1] && (
+                <p className="text-xs opacity-70">{content[1]}</p>
+              )}
+            </div>
+          )}
+
+          {/* File message */}
+          {type === "file" && fileUrl && (
+            <a
+              href={fileUrl}
+              download={content[1] || "file"}
+              className="flex items-center gap-3 p-3 rounded-lg bg-background/10 hover:bg-background/20 transition-colors cursor-pointer min-w-[200px]"
+            >
+              <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {content[1] || "File"}
+                </p>
+                {content[2] && (
+                  <p className="text-xs opacity-70">
+                    {formatFileSize(parseInt(content[2]))}
+                  </p>
+                )}
+              </div>
+              <Download className="h-4 w-4 flex-shrink-0" />
+            </a>
           )}
 
           {/* Timestamp and status */}
