@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { X, ChevronLeft, ChevronRight, Trash2, Eye } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Trash2, Eye, Volume2, VolumeX } from "lucide-react";
 import { format } from "date-fns";
 import { Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -50,11 +50,23 @@ export default function StoryViewer({ stories, onClose }: StoryViewerProps) {
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showViewersDialog, setShowViewersDialog] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const markAsViewed = useMutation(api.stories.markAsViewed);
   const deleteStory = useMutation(api.stories.deleteStory);
 
   const currentStory = stories.stories[currentStoryIndex];
+
+  // Duration for each story type (in milliseconds)
+  const STORY_DURATION = {
+    text: 7000, // 7 seconds for text
+    image: 20000,
+    video: 10000,
+  };
 
   // Get viewers list for current story (only if user owns the story)
   const viewers = useQuery(
@@ -62,11 +74,55 @@ export default function StoryViewer({ stories, onClose }: StoryViewerProps) {
     stories.isCurrentUser && currentStory ? { storyId: currentStory.id } : "skip"
   );
 
+  // Mark story as viewed
   useEffect(() => {
     if (currentStory && !currentStory.hasViewed) {
       markAsViewed({ storyId: currentStory.id });
     }
   }, [currentStory, markAsViewed]);
+
+  // Auto-advance for text and image stories
+  useEffect(() => {
+    if (!currentStory) return;
+
+    // Reset progress
+    setProgress(0);
+
+    // Clear any existing interval
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
+
+    // Don't auto-advance for video stories (they have their own onEnded handler)
+    if (currentStory.type === "video") return;
+
+    const duration = STORY_DURATION[currentStory.type] || 5000;
+    const startTime = Date.now();
+
+    // Update progress bar
+    progressIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progressPercent = Math.min((elapsed / duration) * 100, 100);
+      setProgress(progressPercent);
+
+      if (elapsed >= duration) {
+        handleNext();
+      }
+    }, 50);
+
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    };
+  }, [currentStory, currentStoryIndex]);
+
+  // Handle video mute state
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
 
   const handleNext = () => {
     if (currentStoryIndex < stories.stories.length - 1) {
@@ -154,13 +210,16 @@ export default function StoryViewer({ stories, onClose }: StoryViewerProps) {
                 className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden"
               >
                 <div
-                  className={`h-full bg-white transition-all duration-300 ${
-                    index < currentStoryIndex
-                      ? "w-full"
-                      : index === currentStoryIndex
-                      ? "w-full"
-                      : "w-0"
-                  }`}
+                  className="h-full bg-white transition-all"
+                  style={{
+                    width:
+                      index < currentStoryIndex
+                        ? "100%"
+                        : index === currentStoryIndex
+                        ? `${progress}%`
+                        : "0%",
+                    transitionDuration: index === currentStoryIndex ? "50ms" : "300ms",
+                  }}
                 />
               </div>
             ))}
@@ -188,21 +247,33 @@ export default function StoryViewer({ stories, onClose }: StoryViewerProps) {
           )}
 
           {currentStory.type === "image" && (
-            <img
-              src={currentStory.content[0]}
-              alt="Story"
-              className="w-full h-full object-contain"
-            />
+            <ImageContent storageId={currentStory.content[0]} />
           )}
 
           {currentStory.type === "video" && (
-            <video
-              src={currentStory.content[0]}
-              className="w-full h-full object-contain"
-              autoPlay
-              controls={false}
-              onEnded={handleNext}
-            />
+            <>
+              <VideoContent
+                storageId={currentStory.content[0]}
+                videoRef={videoRef}
+                isMuted={isMuted}
+                onEnded={handleNext}
+              />
+              {/* Mute/Unmute button */}
+              <div className="absolute top-20 right-4 z-20">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsMuted(!isMuted)}
+                  className="text-white hover:bg-white/10 rounded-full bg-black/30"
+                >
+                  {isMuted ? (
+                    <VolumeX className="h-5 w-5" />
+                  ) : (
+                    <Volume2 className="h-5 w-5" />
+                  )}
+                </Button>
+              </div>
+            </>
           )}
 
           {/* Navigation */}
@@ -297,5 +368,62 @@ export default function StoryViewer({ stories, onClose }: StoryViewerProps) {
         </DialogContent>
       </Dialog>
     </Dialog>
+  );
+}
+
+// Helper component to load and display images from Convex storage
+function ImageContent({ storageId }: { storageId: string }) {
+  const imageUrl = useQuery(api.files.getUrl, { storageId });
+
+  if (!imageUrl) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={imageUrl}
+      alt="Story"
+      className="w-full h-full object-contain"
+    />
+  );
+}
+
+// Helper component to load and display videos from Convex storage
+function VideoContent({
+  storageId,
+  videoRef,
+  isMuted,
+  onEnded,
+}: {
+  storageId: string;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  isMuted: boolean;
+  onEnded: () => void;
+}) {
+  const videoUrl = useQuery(api.files.getUrl, { storageId });
+
+  if (!videoUrl) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
+    );
+  }
+
+  return (
+    <video
+      ref={videoRef}
+      src={videoUrl}
+      className="w-full h-full object-contain"
+      autoPlay
+      muted={isMuted}
+      playsInline
+      controls={false}
+      onEnded={onEnded}
+    />
   );
 }
