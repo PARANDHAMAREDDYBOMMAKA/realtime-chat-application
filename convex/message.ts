@@ -1,13 +1,15 @@
 import { ConvexError, v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { getUserByClerjId } from "./_utils";
+import { api } from "./_generated/api";
 
 export const create = mutation({
     args: {
         conversationId: v.id("conversations"),
         type: v.string(),
-        content: v.array(v.string())
-
+        content: v.array(v.string()),
+        replyTo: v.optional(v.id("messages")),
+        mentionedUserIds: v.optional(v.array(v.id("users"))),
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
@@ -30,17 +32,77 @@ export const create = mutation({
             throw new ConvexError("User not found");
         }
 
+        // Create the message
         const message = await ctx.db.insert("messages", {
             senderId: currentUser._id,
             createdAt: Date.now(),
-            ...args
-        })
+            conversationId: args.conversationId,
+            type: args.type,
+            content: args.content,
+            replyTo: args.replyTo,
+        });
+
+        // Update conversation's last message
         await ctx.db.patch(args.conversationId, {
             lastMessageId: message
-        })
+        });
+
+        // Create mentions if any
+        if (args.mentionedUserIds && args.mentionedUserIds.length > 0) {
+            for (const mentionedUserId of args.mentionedUserIds) {
+                await ctx.db.insert("mentions", {
+                    messageId: message,
+                    userId: currentUser._id,
+                    mentionedUserId,
+                    createdAt: Date.now(),
+                });
+            }
+        }
+
+        // Extract and process URLs for link previews (only for text messages)
+        if (args.type === "text" && args.content[0]) {
+            const text = args.content[0];
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const urls = text.match(urlRegex);
+
+            if (urls && urls.length > 0) {
+                const urlsToFetch = urls.slice(0, 3);
+                for (const url of urlsToFetch) {
+                    ctx.scheduler.runAfter(0, api.linkPreviews.fetchAndSaveLinkPreview, {
+                        messageId: message,
+                        url,
+                    });
+                }
+            }
+        }
+
         return message;
     }
 })
+
+// Get a single message by ID
+export const getById = query({
+    args: {
+        messageId: v.id("messages"),
+    },
+    handler: async (ctx, args) => {
+        const message = await ctx.db.get(args.messageId);
+        if (!message) {
+            return null;
+        }
+
+        const sender = await ctx.db.get(message.senderId);
+        if (!sender) {
+            return null;
+        }
+
+        return {
+            ...message,
+            senderName: sender.username,
+            senderImage: sender.imageUrl,
+        };
+    },
+});
 
 export const deleteMessage = mutation({
     args: {

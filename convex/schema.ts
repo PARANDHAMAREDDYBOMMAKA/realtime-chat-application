@@ -91,4 +91,51 @@ export default defineSchema({
         createdAt: v.number(),
     }).index("by_messageId", ["messageId"]).index("by_userId", ["userId"]).index("by_message_user", ["messageId", "userId"]),
 
+    // Link previews for messages
+    linkPreviews: defineTable({
+        messageId: v.id("messages"),
+        url: v.string(),
+        title: v.optional(v.string()),
+        description: v.optional(v.string()),
+        image: v.optional(v.string()),
+        siteName: v.optional(v.string()),
+        createdAt: v.number(),
+    }).index("by_messageId", ["messageId"]).index("by_url", ["url"]),
+
+    // User mentions in messages
+    mentions: defineTable({
+        messageId: v.id("messages"),
+        userId: v.id("users"),
+        mentionedUserId: v.id("users"),
+        createdAt: v.number(),
+    }).index("by_messageId", ["messageId"]).index("by_mentionedUserId", ["mentionedUserId"]).index("by_message_user", ["messageId", "mentionedUserId"]),
+
+    // Push notification preferences
+    notificationSettings: defineTable({
+        userId: v.id("users"),
+        pushEnabled: v.boolean(),
+        soundEnabled: v.boolean(),
+        customSound: v.optional(v.string()),
+        mutedConversations: v.array(v.id("conversations")),
+    }).index("by_userId", ["userId"]),
+
+    // User stories/status updates
+    stories: defineTable({
+        userId: v.id("users"),
+        type: v.union(v.literal("text"), v.literal("image"), v.literal("video")),
+        content: v.array(v.string()), // [storageId/text, caption]
+        backgroundColor: v.optional(v.string()),
+        textColor: v.optional(v.string()),
+        createdAt: v.number(),
+        expiresAt: v.number(), // 24 hours from creation
+        viewers: v.array(v.id("users")),
+    }).index("by_userId", ["userId"]).index("by_expiresAt", ["expiresAt"]).index("by_userId_expiresAt", ["userId", "expiresAt"]),
+
+    // Story views tracking
+    storyViews: defineTable({
+        storyId: v.id("stories"),
+        viewerId: v.id("users"),
+        viewedAt: v.number(),
+    }).index("by_storyId", ["storyId"]).index("by_viewerId", ["viewerId"]).index("by_story_viewer", ["storyId", "viewerId"]),
+
 })

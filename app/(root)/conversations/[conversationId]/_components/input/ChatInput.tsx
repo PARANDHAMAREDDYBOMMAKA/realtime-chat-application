@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { useConversation } from "@/hooks/useConversation";
 import { api } from "@/convex/_generated/api";
 import { useTyping } from "@/hooks/useTyping";
 import { Button } from "@/components/ui/button";
-import { SendHorizontal, Smile, Paperclip, Mic, X, Square, Image, Video, FileText } from "lucide-react";
+import { SendHorizontal, Smile, Paperclip, Mic, X, Square, Image, Video, FileText, Reply, AtSign } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
 import { motion, AnimatePresence } from "framer-motion";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
@@ -16,9 +16,11 @@ import { useTheme } from "next-themes";
 
 interface ChatInputProps {
   conversationId: Id<"conversations">;
+  replyTo?: Id<"messages"> | null;
+  onCancelReply?: () => void;
 }
 
-export default function ChatInput({ conversationId }: ChatInputProps) {
+export default function ChatInput({ conversationId, replyTo, onCancelReply }: ChatInputProps) {
   const [message, setMessage] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -27,6 +29,9 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState("");
+  const [mentionedUserIds, setMentionedUserIds] = useState<Id<"users">[]>([]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,6 +46,12 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
   const createMessage = useMutation(api.message.create);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const { startTyping, stopTyping } = useTyping({ conversationId });
+
+  // Get the message being replied to
+  const replyToMessageData = useQuery(
+    api.message.getById,
+    replyTo ? { messageId: replyTo } : "skip"
+  );
 
   // Determine the current theme for emoji picker
   const currentTheme = theme === "system" ? systemTheme : theme;
@@ -240,14 +251,16 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
         conversationId,
         type: "text",
         content: [message],
+        replyTo: replyTo || undefined,
       };
 
       // Create message in database
       await createMessage(messageData);
 
-      // Clear input and stop typing
+      // Clear input, stop typing, and clear reply
       setMessage("");
       stopTyping();
+      if (onCancelReply) onCancelReply();
 
       // Reset textarea height
       if (textareaRef.current) {
@@ -286,7 +299,42 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
   }, [showRecordingPrompt]);
 
   return (
-    <div className="relative p-4 bg-gradient-to-t from-background/95 to-background/80 backdrop-blur-sm border-t border-border/30">
+    <div className="relative bg-gradient-to-t from-background/95 to-background/80 backdrop-blur-sm border-t border-border/30">
+      {/* Reply Preview */}
+      <AnimatePresence>
+        {replyTo && replyToMessageData && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="px-4 pt-3 pb-2"
+          >
+            <div className="flex items-start gap-2 bg-muted/50 rounded-lg p-3 border-l-2 border-primary">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <Reply className="h-3 w-3 text-primary" />
+                  <span className="text-xs font-semibold text-primary">
+                    Replying to {replyToMessageData.senderName}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {replyToMessageData.content[0]}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onCancelReply}
+                className="h-6 w-6 flex-shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="p-4">
       <AnimatePresence>
         {showRecordingPrompt && (
           <>
@@ -572,6 +620,7 @@ export default function ChatInput({ conversationId }: ChatInputProps) {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }

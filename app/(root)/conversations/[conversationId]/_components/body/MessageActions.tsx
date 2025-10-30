@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { MoreVertical, Trash2, Smile } from "lucide-react";
+import { MoreVertical, Trash2, Smile, Reply } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,10 +23,11 @@ import {
 type Props = {
   onDelete: () => void;
   onReact: () => void;
+  onReply?: () => void;
   fromCurrentUser: boolean;
 };
 
-const MessageActions = ({ onDelete, onReact, fromCurrentUser }: Props) => {
+const MessageActions = ({ onDelete, onReact, onReply, fromCurrentUser }: Props) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const handleDelete = () => {
@@ -47,6 +48,12 @@ const MessageActions = ({ onDelete, onReact, fromCurrentUser }: Props) => {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
+          {onReply && (
+            <DropdownMenuItem onClick={onReply} className="cursor-pointer">
+              <Reply className="h-4 w-4 mr-2" />
+              Reply
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={onReact} className="cursor-pointer">
             <Smile className="h-4 w-4 mr-2" />
             Add Reaction

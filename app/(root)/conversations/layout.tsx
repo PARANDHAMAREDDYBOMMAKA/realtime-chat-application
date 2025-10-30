@@ -8,6 +8,7 @@ import React, { useEffect, useState } from "react";
 import DMConversationItem from "./_components/DMConversationItem";
 import CreateGroupDialog from "./_components/CreateGroupDialog";
 import GroupConversationItem from "./_components/GroupConversationItem";
+import StoriesBar from "./_components/StoriesBar";
 
 type Props = React.PropsWithChildren<object>;
 
@@ -32,6 +33,7 @@ const ConversationsLayout = ({ children }: Props) => {
   return (
     <>
       <ItemList title="Conversations" action={<CreateGroupDialog />}>
+        <StoriesBar />
         {conversations ? (
           conversations.length === 0 ? (
             <p className="w-full h-full flex items-center justify-center">

@@ -11,6 +11,7 @@ import { TooltipContent } from "@radix-ui/react-tooltip";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import NotificationSettings from "@/components/shared/NotificationSettings";
 
 const DesktopNav = () => {
   const paths = useNavigation();
@@ -106,9 +107,12 @@ const DesktopNav = () => {
           </ul>
         </nav>
 
-        <div className="flex flex-col items-center gap-6 relative z-10">
+        <div className="flex flex-col items-center gap-3 relative z-10">
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <ThemeToggle />
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <NotificationSettings />
           </motion.div>
           <motion.div
             whileHover={{ scale: 1.05 }}

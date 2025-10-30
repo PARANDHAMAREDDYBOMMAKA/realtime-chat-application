@@ -12,10 +12,13 @@ import { Avatar } from "@radix-ui/react-avatar";
 import { CircleArrowLeft, Settings, Video, Phone } from "lucide-react";
 import Link from "next/link";
 import React from "react";
+import { Id } from "@/convex/_generated/dataModel";
+import MessageSearchDialog from "./MessageSearchDialog";
 
 type Props = {
   imageUrl?: string;
   name: string;
+  conversationId: Id<"conversations">;
   options?: {
     label: string;
     destructive: boolean;
@@ -25,7 +28,7 @@ type Props = {
   onAudioCall?: () => void;
 };
 
-const Header = ({ imageUrl, name, options, onVideoCall, onAudioCall }: Props) => {
+const Header = ({ imageUrl, name, conversationId, options, onVideoCall, onAudioCall }: Props) => {
   return (
     <Card className="w-full flex-row rounded-lg items-center p-2 justify-between">
       <div className="flex items-center gap-3">
@@ -40,6 +43,9 @@ const Header = ({ imageUrl, name, options, onVideoCall, onAudioCall }: Props) =>
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Search Button */}
+        <MessageSearchDialog conversationId={conversationId} />
+
         {/* Video Call Button */}
         {onVideoCall && (
           <Button

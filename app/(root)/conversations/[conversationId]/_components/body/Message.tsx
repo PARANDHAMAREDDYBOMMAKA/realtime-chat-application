@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Check, CheckCheck, Download, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Check, CheckCheck, Download, FileText, Reply } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -22,6 +23,8 @@ type Props = {
   createdAt: number;
   type: string;
   seen?: boolean;
+  replyTo?: Id<"messages">;
+  onReply?: (messageId: Id<"messages">) => void;
 };
 
 const Message = ({
@@ -34,6 +37,8 @@ const Message = ({
   createdAt,
   type,
   seen,
+  replyTo,
+  onReply,
 }: Props) => {
   const [isVisible, setIsVisible] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
@@ -46,6 +51,16 @@ const Message = ({
   const reactions = useQuery(
     api.reactions.getMessageReactions,
     messageId ? { messageId } : "skip"
+  );
+
+  const replyToMessage = useQuery(
+    api.message.getById,
+    replyTo ? { messageId: replyTo } : "skip"
+  );
+
+  const linkPreviews = useQuery(
+    api.linkPreviews.getMessageLinkPreviews,
+    type === "text" && messageId ? { messageId } : "skip"
   );
 
   const deleteMessage = useMutation(api.message.deleteMessage);
@@ -157,10 +172,63 @@ const Message = ({
           >
           {/* Message content */}
           {type === "text" && (
-            <div className="space-y-1">
+            <div className="space-y-2">
+              {/* Reply preview */}
+              {replyToMessage && (
+                <div className="border-l-2 border-primary/50 pl-2 py-1 bg-background/20 rounded">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <Reply className="h-3 w-3 opacity-60" />
+                    <span className="text-xs font-semibold opacity-80">
+                      {replyToMessage.senderName}
+                    </span>
+                  </div>
+                  <p className="text-xs opacity-70 line-clamp-2">
+                    {replyToMessage.content[0]}
+                  </p>
+                </div>
+              )}
+
               <p className="text-wrap break-words whitespace-pre-wrap leading-relaxed">
-                {content}
+                {renderMessageWithMentions(content[0])}
               </p>
+
+              {/* Link previews */}
+              {linkPreviews && linkPreviews.length > 0 && (
+                <div className="space-y-2 mt-2">
+                  {linkPreviews.map((preview, index) => (
+                    <a
+                      key={index}
+                      href={preview.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block border border-border/50 rounded-lg overflow-hidden hover:border-primary/50 transition-colors"
+                    >
+                      {preview.image && (
+                        <img
+                          src={preview.image}
+                          alt={preview.title || "Link preview"}
+                          className="w-full h-32 object-cover"
+                        />
+                      )}
+                      <div className="p-3 bg-background/30">
+                        {preview.title && (
+                          <p className="font-semibold text-sm line-clamp-1 mb-1">
+                            {preview.title}
+                          </p>
+                        )}
+                        {preview.description && (
+                          <p className="text-xs opacity-70 line-clamp-2 mb-1">
+                            {preview.description}
+                          </p>
+                        )}
+                        {preview.siteName && (
+                          <p className="text-xs opacity-50">{preview.siteName}</p>
+                        )}
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -270,19 +338,36 @@ const Message = ({
           />
 
           {/* Message actions - positioned as overlay */}
-          <div className={cn("absolute -top-3 z-20", {
+          <div className={cn("absolute -top-3 z-20 flex items-center gap-1", {
             "right-2": fromCurrentUser,
             "left-2": !fromCurrentUser,
           })}>
-            <ReactionPicker onSelect={handleAddReaction}>
-              <div className="inline-block">
-                <MessageActions
-                  onDelete={handleDelete}
-                  onReact={() => setShowReactionPicker(!showReactionPicker)}
-                  fromCurrentUser={fromCurrentUser}
-                />
-              </div>
-            </ReactionPicker>
+            {/* Reaction Picker - separate from actions */}
+            {showReactionPicker && (
+              <ReactionPicker onSelect={(emoji) => {
+                handleAddReaction(emoji);
+                setShowReactionPicker(false);
+              }}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 opacity-100"
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                  }}
+                >
+                  <span className="sr-only">Pick reaction</span>
+                </Button>
+              </ReactionPicker>
+            )}
+
+            {/* Message Actions Dropdown */}
+            <MessageActions
+              onDelete={handleDelete}
+              onReact={() => setShowReactionPicker(!showReactionPicker)}
+              onReply={onReply ? () => onReply(messageId) : undefined}
+              fromCurrentUser={fromCurrentUser}
+            />
           </div>
           </div>
 
@@ -313,5 +398,36 @@ const Message = ({
     </div>
   );
 };
+
+// Helper function to render message with highlighted mentions
+function renderMessageWithMentions(text: string) {
+  const mentionRegex = /@(\w+)/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = mentionRegex.exec(text)) !== null) {
+    // Add text before mention
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+
+    // Add highlighted mention
+    parts.push(
+      <span key={match.index} className="text-primary font-semibold bg-primary/10 px-1 rounded">
+        @{match[1]}
+      </span>
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+}
 
 export default Message;

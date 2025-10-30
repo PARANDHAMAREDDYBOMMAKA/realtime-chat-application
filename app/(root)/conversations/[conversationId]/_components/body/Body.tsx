@@ -26,6 +26,7 @@ interface Message {
 interface BodyProps {
   initialMessages?: Message[];
   conversationId: Id<"conversations">;
+  onReply?: (messageId: Id<"messages">) => void;
 }
 
 const formatDateSeparator = (timestamp: number): string => {
@@ -35,7 +36,7 @@ const formatDateSeparator = (timestamp: number): string => {
   return format(date, "MMMM dd, yyyy");
 };
 
-export default function Body({ conversationId }: BodyProps) {
+export default function Body({ conversationId, onReply }: BodyProps) {
   const messages = useQuery(api.messages.get,
     conversationId ? { id: conversationId } : "skip"
   );
@@ -108,6 +109,8 @@ export default function Body({ conversationId }: BodyProps) {
                 createdAt={message._creationTime}
                 type={message.type}
                 seen={seen}
+                replyTo={message.replyTo}
+                onReply={onReply}
               />
               {showDateSeparator && (
                 <div className="flex items-center justify-center my-4">

@@ -18,6 +18,7 @@ import OutgoingCallNotification from "./_components/OutgoingCallNotification";
 import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { capitalizeName } from "@/lib/utils";
+import { useMessageNotifications } from "@/hooks/useMessageNotifications";
 
 type Props = {
   params: Promise<{
@@ -59,6 +60,10 @@ const ConversationPage = ({ params }: Props) => {
   const [leaveGroupDialog, setLeaveGroupDialog] = useState(false);
   const [addMembersDialog, setAddMembersDialog] = useState(false);
   const [isInCall, setIsInCall] = useState(false);
+  const [replyToMessage, setReplyToMessage] = useState<Id<"messages"> | null>(null);
+
+  // Enable message notifications for this conversation
+  useMessageNotifications(conversationId!);
 
   // Update isInCall based on activeCall status and participant status
   useEffect(() => {
@@ -235,6 +240,7 @@ const ConversationPage = ({ params }: Props) => {
 
           {conversation && (
             <Header
+              conversationId={conversationId}
               imageUrl={
                 conversation.isGroup
                   ? undefined
@@ -277,8 +283,15 @@ const ConversationPage = ({ params }: Props) => {
             />
           )}
 
-          <Body conversationId={conversationId} />
-          <ChatInput conversationId={conversationId} />
+          <Body
+            conversationId={conversationId}
+            onReply={setReplyToMessage}
+          />
+          <ChatInput
+            conversationId={conversationId}
+            replyTo={replyToMessage}
+            onCancelReply={() => setReplyToMessage(null)}
+          />
         </ConversationContainer>
       </>
     );
