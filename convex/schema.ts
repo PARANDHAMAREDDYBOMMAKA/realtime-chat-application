@@ -9,6 +9,8 @@ export default defineSchema({
         email: v.string(),
         lastSeen: v.optional(v.number()),
         status: v.optional(v.union(v.literal("online"), v.literal("offline"), v.literal("away"))),
+        publicKey: v.optional(v.string()),
+        keyFingerprint: v.optional(v.string()),
     }).index("by_email", ["email"]).index("by_clerkId", ["clerkId"]).index("by_status", ["status"]),
 
     requests: defineTable({
@@ -64,6 +66,13 @@ export default defineSchema({
         createdAt: v.optional(v.number()),
         editedAt: v.optional(v.number()),
         replyTo: v.optional(v.id("messages")),
+        isEncrypted: v.optional(v.boolean()),
+        encryptedContent: v.optional(v.string()),
+        iv: v.optional(v.string()),
+        encryptedKeys: v.optional(v.array(v.object({
+            userId: v.id("users"),
+            encryptedSymmetricKey: v.string(),
+        }))),
     }).index("by_conversationId", ["conversationId"]).index("by_senderId_conversationId", ["senderId", "conversationId"]).index("by_room", ["roomId"]).index("by_created", ["createdAt"]),
 
     calls: defineTable({

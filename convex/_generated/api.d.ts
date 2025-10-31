@@ -17,6 +17,7 @@ import type * as _utils from "../_utils.js";
 import type * as call from "../call.js";
 import type * as conversation from "../conversation.js";
 import type * as conversations from "../conversations.js";
+import type * as encryption from "../encryption.js";
 import type * as files from "../files.js";
 import type * as friend from "../friend.js";
 import type * as friends from "../friends.js";
@@ -48,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   call: typeof call;
   conversation: typeof conversation;
   conversations: typeof conversations;
+  encryption: typeof encryption;
   files: typeof files;
   friend: typeof friend;
   friends: typeof friends;

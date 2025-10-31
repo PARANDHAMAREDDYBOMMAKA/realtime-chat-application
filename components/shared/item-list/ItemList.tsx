@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { useConversation } from "@/hooks/useConversation";
 import { cn } from "@/lib/utils";
 import React, { useEffect, useState, useRef } from "react";
-import { motion } from "framer-motion";
 import { Search, X } from "lucide-react";
 
 type Props = React.PropsWithChildren<{
@@ -54,110 +53,85 @@ const ItemList = ({ children, title, action: Action, onSearch }: Props) => {
   if (!mounted) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.2 }}
+    <div
       className={cn("hidden h-full w-full lg:flex-none lg:w-80", {
         block: !isActive,
         "lg:block": isActive,
       })}
     >
-      <Card className="h-full w-full p-4 border-0 shadow-none bg-background/50 backdrop-blur-sm">
-        {/* Subtle top border accent */}
-        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-
-        {/* Content */}
-        <div className="relative h-full flex flex-col">
-          {/* Header & Search */}
+      <Card className="h-full w-full flex flex-col border-0 shadow-sm bg-card">
+        {/* Header Section */}
+        <div className="flex-none px-5 pt-5 pb-3">
           {isSearchExpanded ? (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="mb-3 overflow-hidden"
-            >
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-                <Input
-                  ref={searchInputRef}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search conversations..."
-                  className="pl-10 pr-10 h-12 bg-muted/30 border-0 focus-visible:ring-1 focus-visible:ring-primary/30 rounded-xl transition-all"
-                />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={searchQuery ? handleClearSearch : handleSearchToggle}
-                    className="h-8 w-8 rounded-full hover:bg-muted/50 transition-colors"
-                    title={searchQuery ? "Clear search" : "Close search"}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search conversations..."
+                className="h-11 pl-10 pr-10 bg-muted/50 border-border/50 focus-visible:ring-2 focus-visible:ring-primary/20 rounded-lg"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={searchQuery ? handleClearSearch : handleSearchToggle}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 hover:bg-background"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           ) : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-              className="mb-4 flex items-center justify-between pb-3"
-            >
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                {title}
-              </h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={handleSearchToggle}
-                  className="h-9 w-9 rounded-full hover:bg-muted/50 transition-all hover:scale-105 active:scale-95"
+                  className="h-9 w-9 hover:bg-muted"
                 >
                   <Search className="h-4 w-4" />
                 </Button>
                 {Action && <div>{Action}</div>}
               </div>
-            </motion.div>
+            </div>
           )}
+        </div>
 
-          {/* Content Area */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-            className={cn(
-              "flex-1 w-full flex flex-col gap-1.5 overflow-y-auto pr-2 custom-scrollbar"
-            )}
-          >
-            {children}
-          </motion.div>
+        {/* Separator */}
+        <div className="mx-5 h-px bg-border" />
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto px-3 py-3 custom-scrollbar">
+          <div className="flex flex-col gap-1">{children}</div>
         </div>
 
         {/* Custom scrollbar styles */}
         <style jsx global>{`
           .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
+            width: 8px;
           }
 
           .custom-scrollbar::-webkit-scrollbar-track {
             background: transparent;
+            margin: 8px 0;
           }
 
           .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: hsl(var(--muted-foreground) / 0.2);
-            border-radius: 10px;
+            background: hsl(var(--muted-foreground) / 0.15);
+            border-radius: 4px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
           }
 
           .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: hsl(var(--muted-foreground) / 0.3);
+            background: hsl(var(--muted-foreground) / 0.25);
+            background-clip: padding-box;
           }
         `}</style>
       </Card>
-    </motion.div>
+    </div>
   );
 };
 
