@@ -7,12 +7,14 @@ import { useConversation } from "@/hooks/useConversation";
 import { api } from "@/convex/_generated/api";
 import { useTyping } from "@/hooks/useTyping";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SendHorizontal, Smile, Paperclip, Mic, X, Square, Image, Video, FileText, Reply, AtSign } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
 import { motion, AnimatePresence } from "framer-motion";
 import EmojiPicker, { EmojiClickData, Theme } from "emoji-picker-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "next-themes";
+import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
   conversationId: Id<"conversations">;
@@ -31,7 +33,9 @@ export default function ChatInput({ conversationId, replyTo, onCancelReply }: Ch
   const [showRecordingPrompt, setShowRecordingPrompt] = useState(false);
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionSearch, setMentionSearch] = useState("");
-  const [mentionedUserIds, setMentionedUserIds] = useState<Id<"users">[]>([]);
+  const [mentionedUsers, setMentionedUsers] = useState<Map<string, Id<"users">>>(new Map());
+  const [mentionStartPos, setMentionStartPos] = useState<number>(0);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -39,6 +43,7 @@ export default function ChatInput({ conversationId, replyTo, onCancelReply }: Ch
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isCancelledRef = useRef<boolean>(false);
+  const mentionSuggestionsRef = useRef<HTMLDivElement>(null);
 
   const { user } = useUser();
   const { toast } = useToast();
@@ -46,6 +51,14 @@ export default function ChatInput({ conversationId, replyTo, onCancelReply }: Ch
   const createMessage = useMutation(api.message.create);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const { startTyping, stopTyping } = useTyping({ conversationId });
+
+  // Query mentionable users
+  const mentionableUsers = useQuery(
+    api.mentions.getMentionableUsers,
+    conversationId && showMentionSuggestions
+      ? { conversationId, searchQuery: mentionSearch }
+      : "skip"
+  );
 
   // Get the message being replied to
   const replyToMessageData = useQuery(
@@ -242,16 +255,98 @@ export default function ChatInput({ conversationId, replyTo, onCancelReply }: Ch
     }
   };
 
+  // Extract mentioned user IDs from message and tracked mentions
+  const extractMentionedUserIds = (text: string): Id<"users">[] => {
+    const mentionRegex = /@(\w+)/g;
+    const userIds: Id<"users">[] = [];
+    let match;
+
+    while ((match = mentionRegex.exec(text)) !== null) {
+      const username = match[1];
+      const userId = mentionedUsers.get(username);
+      if (userId) {
+        userIds.push(userId);
+      }
+    }
+
+    return userIds;
+  };
+
+  // Insert mention at cursor position
+  const insertMention = (username: string, userId: Id<"users">) => {
+    if (!textareaRef.current) return;
+
+    // Replace spaces with underscores for mention format
+    const mentionUsername = username.replace(/\s+/g, '_');
+
+    const before = message.substring(0, mentionStartPos);
+    const after = message.substring(textareaRef.current.selectionStart);
+    const newMessage = `${before}@${mentionUsername} ${after}`;
+
+    setMessage(newMessage);
+
+    // Track this mention using the formatted username
+    setMentionedUsers(prev => new Map(prev).set(mentionUsername, userId));
+
+    setShowMentionSuggestions(false);
+    setMentionSearch("");
+    setSelectedMentionIndex(0);
+
+    // Set cursor position after the mention
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const newPos = before.length + mentionUsername.length + 2; // +2 for @ and space
+        textareaRef.current.selectionStart = newPos;
+        textareaRef.current.selectionEnd = newPos;
+        textareaRef.current.focus();
+      }
+    }, 0);
+  };
+
+  // Handle message input change
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart;
+
+    setMessage(value);
+    handleTyping();
+
+    // Check for @ mentions
+    const textBeforeCursor = value.substring(0, cursorPos);
+    const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+
+    if (lastAtIndex !== -1) {
+      const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+
+      // Check if there's a space or newline after @, if so, don't show suggestions
+      if (!textAfterAt.includes(" ") && !textAfterAt.includes("\n")) {
+        setMentionStartPos(lastAtIndex);
+        setMentionSearch(textAfterAt);
+        setShowMentionSuggestions(true);
+        setSelectedMentionIndex(0);
+        return;
+      }
+    }
+
+    // Hide suggestions if @ is not found or conditions not met
+    setShowMentionSuggestions(false);
+    setMentionSearch("");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || !user?.id || !conversationId) return;
 
     try {
+      // Extract mentioned user IDs
+      const mentionedIds = extractMentionedUserIds(message);
+
       const messageData = {
         conversationId,
         type: "text",
         content: [message],
         replyTo: replyTo || undefined,
+        mentionedUserIds: mentionedIds.length > 0 ? mentionedIds : undefined,
       };
 
       // Create message in database
@@ -259,6 +354,7 @@ export default function ChatInput({ conversationId, replyTo, onCancelReply }: Ch
 
       // Clear input, stop typing, and clear reply
       setMessage("");
+      setMentionedUsers(new Map());
       stopTyping();
       if (onCancelReply) onCancelReply();
 
@@ -506,13 +602,40 @@ export default function ChatInput({ conversationId, replyTo, onCancelReply }: Ch
           <textarea
             ref={textareaRef}
             value={message}
-            onChange={(e) => {
-              setMessage(e.target.value);
-              handleTyping();
-            }}
+            onChange={handleMessageChange}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             onKeyDown={(e) => {
+              // Handle mention suggestions navigation
+              if (showMentionSuggestions && mentionableUsers && mentionableUsers.length > 0) {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setSelectedMentionIndex((prev) =>
+                    prev < mentionableUsers.length - 1 ? prev + 1 : 0
+                  );
+                  return;
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setSelectedMentionIndex((prev) =>
+                    prev > 0 ? prev - 1 : mentionableUsers.length - 1
+                  );
+                  return;
+                } else if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  const selectedUser = mentionableUsers[selectedMentionIndex];
+                  if (selectedUser) {
+                    insertMention(selectedUser.username, selectedUser.id);
+                  }
+                  return;
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  setShowMentionSuggestions(false);
+                  setMentionSearch("");
+                  return;
+                }
+              }
+
+              // Normal enter key behavior
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSubmit(e);
@@ -523,6 +646,49 @@ export default function ChatInput({ conversationId, replyTo, onCancelReply }: Ch
             rows={1}
             style={{ lineHeight: '1.5' }}
           />
+
+          {/* Mention suggestions dropdown */}
+          <AnimatePresence>
+            {showMentionSuggestions && mentionableUsers && mentionableUsers.length > 0 && (
+              <motion.div
+                ref={mentionSuggestionsRef}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 5 }}
+                className="absolute bottom-full left-0 mb-2 w-64 bg-popover border border-border rounded-lg shadow-lg overflow-hidden z-50"
+              >
+                <div className="py-1 max-h-48 overflow-y-auto">
+                  {mentionableUsers.map((user, index) => (
+                    <button
+                      key={user.id}
+                      type="button"
+                      onClick={() => insertMention(user.username, user.id)}
+                      onMouseEnter={() => setSelectedMentionIndex(index)}
+                      className={cn(
+                        "w-full px-3 py-2 flex items-center gap-2 hover:bg-accent transition-colors text-left",
+                        {
+                          "bg-accent": index === selectedMentionIndex,
+                        }
+                      )}
+                    >
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.imageUrl} alt={user.username} />
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                          {user.username.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{user.username}</p>
+                      </div>
+                      {index === selectedMentionIndex && (
+                        <AtSign className="h-4 w-4 text-primary" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Action buttons - right side */}

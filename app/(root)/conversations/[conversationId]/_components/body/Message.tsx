@@ -401,6 +401,7 @@ const Message = ({
 
 // Helper function to render message with highlighted mentions
 function renderMessageWithMentions(text: string) {
+  // Match mentions in format @username
   const mentionRegex = /@(\w+)/g;
   const parts = [];
   let lastIndex = 0;
@@ -412,9 +413,11 @@ function renderMessageWithMentions(text: string) {
       parts.push(text.substring(lastIndex, match.index));
     }
 
-    // Add highlighted mention
     parts.push(
-      <span key={match.index} className="text-primary font-semibold bg-primary/10 px-1 rounded">
+      <span
+        key={match.index}
+        className="inline-flex items-center font-bold px-2 py-0.5 rounded-md transition-all cursor-pointer shadow-sm bg-blue-500/20 text-blue-600 dark:text-blue-400 dark:bg-blue-400/20 border border-blue-500/40 dark:border-blue-400/40 hover:bg-blue-500/30 dark:hover:bg-blue-400/30"
+      >
         @{match[1]}
       </span>
     );
