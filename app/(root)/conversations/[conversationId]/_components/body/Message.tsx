@@ -342,33 +342,51 @@ const Message = ({
             "right-2": fromCurrentUser,
             "left-2": !fromCurrentUser,
           })}>
-            {/* Reaction Picker - separate from actions */}
-            {showReactionPicker && (
-              <ReactionPicker onSelect={(emoji) => {
-                handleAddReaction(emoji);
-                setShowReactionPicker(false);
-              }}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 opacity-100"
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                  }}
-                >
-                  <span className="sr-only">Pick reaction</span>
-                </Button>
-              </ReactionPicker>
-            )}
-
             {/* Message Actions Dropdown */}
             <MessageActions
               onDelete={handleDelete}
-              onReact={() => setShowReactionPicker(!showReactionPicker)}
+              onReact={() => setShowReactionPicker(true)}
               onReply={onReply ? () => onReply(messageId) : undefined}
               fromCurrentUser={fromCurrentUser}
             />
           </div>
+
+          {/* Reaction Picker positioned near message bubble */}
+          {showReactionPicker && (
+            <>
+              {/* Backdrop to close on outside click */}
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowReactionPicker(false)}
+              />
+
+              {/* Emoji picker */}
+              <div
+                className={cn("absolute -top-14 z-50 bg-background border border-border rounded-lg shadow-lg p-2 w-64", {
+                  "right-0": fromCurrentUser,
+                  "left-0": !fromCurrentUser,
+                })}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="grid grid-cols-6 gap-1">
+                  {["👍", "❤️", "😂", "😮", "😢", "😡", "🔥", "👏", "🎉", "✨", "💯", "🙏"].map((emoji) => (
+                    <Button
+                      key={emoji}
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 w-10 p-0 text-2xl hover:bg-accent hover:scale-110 transition-transform"
+                      onClick={() => {
+                        handleAddReaction(emoji);
+                        setShowReactionPicker(false);
+                      }}
+                    >
+                      {emoji}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
           </div>
 
           {/* Reactions display */}

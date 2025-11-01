@@ -29,15 +29,24 @@ type Props = {
 
 const MessageActions = ({ onDelete, onReact, onReply, fromCurrentUser }: Props) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const handleDelete = () => {
     onDelete();
     setShowDeleteDialog(false);
   };
 
+  const handleReact = () => {
+    setOpen(false);
+    // Small delay to ensure dropdown is closed before opening reaction picker
+    setTimeout(() => {
+      onReact();
+    }, 100);
+  };
+
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -54,7 +63,7 @@ const MessageActions = ({ onDelete, onReact, onReply, fromCurrentUser }: Props) 
               Reply
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onClick={onReact} className="cursor-pointer">
+          <DropdownMenuItem onClick={handleReact} className="cursor-pointer">
             <Smile className="h-4 w-4 mr-2" />
             Add Reaction
           </DropdownMenuItem>

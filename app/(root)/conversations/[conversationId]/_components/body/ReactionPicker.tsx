@@ -11,6 +11,8 @@ import {
 type Props = {
   onSelect: (emoji: string) => void;
   children: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 const COMMON_EMOJIS = [
@@ -18,8 +20,11 @@ const COMMON_EMOJIS = [
   "🔥", "👏", "🎉", "✨", "💯", "🙏"
 ];
 
-const ReactionPicker = ({ onSelect, children }: Props) => {
-  const [open, setOpen] = React.useState(false);
+const ReactionPicker = ({ onSelect, children, open: controlledOpen, onOpenChange }: Props) => {
+  const [internalOpen, setInternalOpen] = React.useState(false);
+
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
 
   const handleSelect = (emoji: string) => {
     onSelect(emoji);
