@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@/components/ui/visually-hidden";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { X, ChevronLeft, ChevronRight, Trash2, Eye, Volume2, VolumeX } from "lucide-react";
@@ -164,6 +165,9 @@ export default function StoryViewer({ stories, onClose }: StoryViewerProps) {
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md h-[80vh] p-0 bg-black border-0 [&>button]:hidden">
+        <VisuallyHidden>
+          <DialogTitle>Story from {stories.username}</DialogTitle>
+        </VisuallyHidden>
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-black/60 to-transparent">
           <div className="flex items-center justify-between mb-3">
@@ -342,8 +346,8 @@ export default function StoryViewer({ stories, onClose }: StoryViewerProps) {
       {/* Viewers Dialog */}
       <Dialog open={showViewersDialog} onOpenChange={setShowViewersDialog}>
         <DialogContent className="sm:max-w-md">
+          <DialogTitle className="text-lg font-semibold">Viewed by</DialogTitle>
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Viewed by</h3>
             {viewers && viewers.length > 0 ? (
               <div className="space-y-3 max-h-[400px] overflow-y-auto">
                 {viewers.map((viewer) => (

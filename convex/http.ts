@@ -35,15 +35,7 @@ const handleClerkWebhook = httpAction(async (ctx, req) => {
         case "user.created": {
             const user = await ctx.runQuery(internal.user.get, { clerkId: event.data.id });
 
-            if (user) {
-                console.log(`Updating user ${event.data.id} with: ${event.data}`);
-                await ctx.runMutation(internal.user.create, {
-                    username: `${event.data.first_name} ${event.data.last_name}`,
-                    imageUrl: event.data.image_url,
-                    clerkId: event.data.id,
-                    email: event.data.email_addresses?.[0]?.email_address ?? "",
-                });
-            } else {
+            if (!user) {
                 console.log(`Creating new user ${event.data.id}`);
                 await ctx.runMutation(internal.user.create, {
                     username: `${event.data.first_name} ${event.data.last_name}`,
@@ -51,13 +43,15 @@ const handleClerkWebhook = httpAction(async (ctx, req) => {
                     clerkId: event.data.id,
                     email: event.data.email_addresses?.[0]?.email_address ?? "",
                 });
+            } else {
+                console.log(`User ${event.data.id} already exists, skipping creation`);
             }
             break;
         }
         case "user.updated": {
-            console.log("Creating/Updating user", event.data);
+            console.log("Updating user", event.data);
 
-            await ctx.runMutation(internal.user.create, {
+            await ctx.runMutation(internal.user.update, {
                 username: `${event.data.first_name} ${event.data.last_name}`,
                 imageUrl: event.data.image_url,
                 clerkId: event.data.id,
