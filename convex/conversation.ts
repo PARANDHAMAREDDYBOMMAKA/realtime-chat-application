@@ -25,7 +25,7 @@ export const get = query({
             throw new ConvexError("Conversation not found");
         }
 
-        const membership = await ctx.db.query("conversationMembers").withIndex("by_memberId_conversationId", (q) => q.eq("memberId", currentUser._id).eq("conversationId", conversation._id)).unique();
+        const membership = await ctx.db.query("conversationMembers").withIndex("by_memberId_conversationId", (q) => q.eq("memberId", currentUser._id).eq("conversationId", conversation._id)).first();
 
         if (!membership) {
             throw new ConvexError("You are not a member of this conversation");
@@ -80,7 +80,10 @@ export const createGroup = mutation({
             name: args.name
         })
 
-        await Promise.all([...args.members, currentUser._id].map(async memberId => {
+        // Remove duplicates from member list
+        const uniqueMembers = Array.from(new Set([...args.members, currentUser._id]));
+
+        await Promise.all(uniqueMembers.map(async memberId => {
             await ctx.db.insert("conversationMembers", {
                 memberId,
                 conversationId,
@@ -124,7 +127,7 @@ export const addMembersToGroup = mutation({
             .withIndex("by_memberId_conversationId", (q) =>
                 q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)
             )
-            .unique();
+            .first();
 
         if (!membership) {
             throw new ConvexError("You are not a member of this group");
@@ -139,7 +142,7 @@ export const addMembersToGroup = mutation({
                 .withIndex("by_memberId_conversationId", (q) =>
                     q.eq("memberId", memberId).eq("conversationId", args.conversationId)
                 )
-                .unique();
+                .first();
 
             if (!existingMembership) {
                 await ctx.db.insert("conversationMembers", {
@@ -206,7 +209,7 @@ export const leaveGroup = mutation({
             .withIndex("by_memberId_conversationId", (q) =>
                 q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)
             )
-            .unique();
+            .first();
 
         if (!membership) {
             throw new ConvexError("You are not a member of this group");
@@ -303,7 +306,7 @@ export const updateLastSeenMessage = mutation({
       .withIndex("by_memberId_conversationId", (q) =>
         q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)
       )
-      .unique();
+      .first();
     if (!membership) throw new ConvexError("Membership not found");
     await ctx.db.patch(membership._id, { lastSeenMessage: args.messageId });
   },
@@ -324,7 +327,7 @@ export const setTyping = mutation({
       .withIndex("by_memberId_conversationId", (q) =>
         q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)
       )
-      .unique();
+      .first();
     if (!membership) throw new ConvexError("Membership not found");
     await ctx.db.patch(membership._id, {
       isTyping: args.isTyping,
@@ -347,7 +350,7 @@ export const startTyping = mutation({
       .withIndex("by_memberId_conversationId", (q) =>
         q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)
       )
-      .unique();
+      .first();
     if (!membership) throw new ConvexError("Membership not found");
     await ctx.db.patch(membership._id, {
       isTyping: true,
@@ -370,7 +373,7 @@ export const stopTyping = mutation({
       .withIndex("by_memberId_conversationId", (q) =>
         q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)
       )
-      .unique();
+      .first();
     if (!membership) throw new ConvexError("Membership not found");
     await ctx.db.patch(membership._id, {
       isTyping: false,

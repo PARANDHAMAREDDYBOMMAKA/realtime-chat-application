@@ -34,7 +34,7 @@ export const addReaction = mutation({
             .withIndex("by_memberId_conversationId", (q) =>
                 q.eq("memberId", currentUser._id).eq("conversationId", message.conversationId)
             )
-            .unique();
+            .first();
 
         if (!membership) {
             throw new ConvexError("You are not a member of this conversation");
@@ -47,7 +47,7 @@ export const addReaction = mutation({
                 q.eq("messageId", args.messageId).eq("userId", currentUser._id)
             )
             .filter((q) => q.eq(q.field("emoji"), args.emoji))
-            .unique();
+            .first();
 
         if (existingReaction) {
             // Remove reaction if it already exists (toggle behavior)

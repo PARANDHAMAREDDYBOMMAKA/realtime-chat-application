@@ -26,7 +26,7 @@ export const get = query({
             .withIndex("by_memberId_conversationId", (q) =>
                 q.eq("memberId", currentUser._id).eq("conversationId", args.id)
             )
-            .unique();
+            .first();
 
         if (!membership) {
             throw new ConvexError("User not found");

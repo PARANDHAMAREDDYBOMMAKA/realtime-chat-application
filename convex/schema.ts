@@ -147,4 +147,24 @@ export default defineSchema({
         viewedAt: v.number(),
     }).index("by_storyId", ["storyId"]).index("by_viewerId", ["viewerId"]).index("by_story_viewer", ["storyId", "viewerId"]),
 
+    // Support tickets
+    supportTickets: defineTable({
+        userId: v.id("users"),
+        subject: v.string(),
+        description: v.string(),
+        status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed")),
+        priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+    }).index("by_userId", ["userId"]).index("by_status", ["status"]).index("by_createdAt", ["createdAt"]),
+
+    // Ticket replies
+    ticketReplies: defineTable({
+        ticketId: v.id("supportTickets"),
+        userId: v.id("users"),
+        message: v.string(),
+        isAdminReply: v.boolean(),
+        createdAt: v.number(),
+    }).index("by_ticketId", ["ticketId"]).index("by_userId", ["userId"]),
+
 })

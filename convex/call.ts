@@ -16,7 +16,7 @@ export const start = mutation({
     const currentUser = await ctx.db
       .query("users")
       .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
-      .unique();
+      .first();
 
     if (!currentUser) {
       throw new Error("User not found");
@@ -82,7 +82,7 @@ export const accept = mutation({
     const currentUser = await ctx.db
       .query("users")
       .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
-      .unique();
+      .first();
 
     if (!currentUser) {
       throw new Error("User not found");
@@ -147,7 +147,7 @@ export const leave = mutation({
     const currentUser = await ctx.db
       .query("users")
       .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
-      .unique();
+      .first();
 
     if (!currentUser) {
       throw new Error("User not found");
@@ -284,7 +284,7 @@ export const getActiveCall = query({
     const currentUser = await ctx.db
       .query("users")
       .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
-      .unique();
+      .first();
 
     if (!currentUser) {
       return null;

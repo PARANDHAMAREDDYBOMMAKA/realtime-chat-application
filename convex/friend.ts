@@ -27,7 +27,7 @@ export const remove = mutation({
         const membership = await ctx.db.query("conversationMembers").withIndex("by_conversationId", (q) => q.eq("conversationId", args.conversationId)).collect()
         if (!membership || membership.length !== 2) throw new ConvexError("Membership not found");
 
-        const friendships = await ctx.db.query("friends").withIndex("by_conversationId", q => { return q.eq("conversationId", args.conversationId) }).unique();
+        const friendships = await ctx.db.query("friends").withIndex("by_conversationId", q => { return q.eq("conversationId", args.conversationId) }).first();
 
         if (!friendships) {
             throw new ConvexError("Friendship not found");

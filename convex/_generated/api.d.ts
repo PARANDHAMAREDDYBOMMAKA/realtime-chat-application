@@ -34,6 +34,7 @@ import type * as requests from "../requests.js";
 import type * as rooms from "../rooms.js";
 import type * as search from "../search.js";
 import type * as stories from "../stories.js";
+import type * as support from "../support.js";
 import type * as user from "../user.js";
 
 /**
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   rooms: typeof rooms;
   search: typeof search;
   stories: typeof stories;
+  support: typeof support;
   user: typeof user;
 }>;
 export declare const api: FilterApi<

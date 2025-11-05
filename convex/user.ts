@@ -20,6 +20,13 @@ export const get = internalQuery({
     }
 })
 
+export const getByEmail = internalQuery({
+    args: { email: v.string() },
+    async handler(ctx, args) {
+        return ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", args.email)).first();
+    }
+})
+
 export const update = internalMutation({
     args: {
         clerkId: v.string(),

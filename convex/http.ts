@@ -34,17 +34,23 @@ const handleClerkWebhook = httpAction(async (ctx, req) => {
     switch (event.type) {
         case "user.created": {
             const user = await ctx.runQuery(internal.user.get, { clerkId: event.data.id });
+            const email = event.data.email_addresses?.[0]?.email_address ?? "";
 
-            if (!user) {
+            // Check if user with this email already exists
+            const existingUserByEmail = await ctx.runQuery(internal.user.getByEmail, { email });
+
+            if (!user && !existingUserByEmail) {
                 console.log(`Creating new user ${event.data.id}`);
                 await ctx.runMutation(internal.user.create, {
                     username: `${event.data.first_name} ${event.data.last_name}`,
                     imageUrl: event.data.image_url,
                     clerkId: event.data.id,
-                    email: event.data.email_addresses?.[0]?.email_address ?? "",
+                    email,
                 });
-            } else {
+            } else if (user) {
                 console.log(`User ${event.data.id} already exists, skipping creation`);
+            } else if (existingUserByEmail) {
+                console.log(`User with email ${email} already exists, skipping creation`);
             }
             break;
         }

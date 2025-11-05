@@ -1,6 +1,6 @@
 import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
-import { MessageSquare, Users } from "lucide-react";
+import { MessageSquare, Users, LifeBuoy } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 
@@ -23,6 +23,12 @@ export const useNavigation = () => {
         icon: <Users />,
         active: pathName == "/friends",
         count: requestsCount,
+      },
+      {
+        name: "Support",
+        href: "/support",
+        icon: <LifeBuoy />,
+        active: pathName.startsWith("/support"),
       },
     ],
     [pathName, requestsCount]

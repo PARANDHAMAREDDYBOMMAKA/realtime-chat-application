@@ -90,7 +90,7 @@ export const getConversationMemberKeys = query({
             .withIndex("by_memberId_conversationId", (q) =>
                 q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)
             )
-            .unique();
+            .first();
 
         if (!membership) {
             throw new ConvexError("Not a member of this conversation");

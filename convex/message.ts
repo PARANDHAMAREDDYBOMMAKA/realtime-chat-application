@@ -26,7 +26,7 @@ export const create = mutation({
             throw new ConvexError("User not found");
         }
 
-        const membership = await ctx.db.query("conversationMembers").withIndex("by_memberId_conversationId", (q) => q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)).unique();
+        const membership = await ctx.db.query("conversationMembers").withIndex("by_memberId_conversationId", (q) => q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)).first();
 
         if (!membership) {
             throw new ConvexError("User not found");
