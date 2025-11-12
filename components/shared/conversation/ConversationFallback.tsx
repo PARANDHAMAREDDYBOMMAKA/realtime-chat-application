@@ -44,7 +44,7 @@ const ConversationFallback = () => {
         </div>
 
         {/* Feature highlights */}
-        <div className="space-y-4 pt-4">
+        {/* <div className="space-y-4 pt-4">
           <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
             <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2 backdrop-blur-sm">
               <Users className="w-4 h-4 text-primary" />
@@ -55,7 +55,7 @@ const ConversationFallback = () => {
               <span>Add Friends</span>
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Subtle animation hint */}
         <div className="pt-8">

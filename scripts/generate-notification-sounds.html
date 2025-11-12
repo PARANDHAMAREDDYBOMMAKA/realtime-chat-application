@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generate Notification Sounds</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .description {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    .sound-button {
+      display: inline-block;
+      padding: 12px 24px;
+      margin: 10px 10px 10px 0;
+      background: #25D366;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.3s;
+    }
+    .sound-button:hover {
+      background: #20BA5A;
+    }
+    .sound-button:active {
+      transform: scale(0.95);
+    }
+    .download-button {
+      background: #007AFF;
+    }
+    .download-button:hover {
+      background: #0051D5;
+    }
+    .instruction {
+      background: #FFF9E6;
+      border-left: 4px solid #FFD700;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    .note {
+      background: #E3F2FD;
+      border-left: 4px solid #2196F3;
+      padding: 15px;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Notification Sound Generator</h1>
+    <p class="description">
+      Generate and download notification sounds for your chat application.
+      These are temporary sounds until you add professional audio files.
+    </p>
+
+    <div class="note">
+      <strong>Note:</strong> This tool generates basic notification sounds using Web Audio API.
+      For production, it's recommended to use professional audio files.
+    </div>
+
+    <h2>Preview Sounds</h2>
+    <button class="sound-button" onclick="playSound('default')">Play Default</button>
+    <button class="sound-button" onclick="playSound('ding')">Play Ding</button>
+    <button class="sound-button" onclick="playSound('bell')">Play Bell</button>
+    <button class="sound-button" onclick="playSound('chime')">Play Chime</button>
+    <button class="sound-button" onclick="playSound('pop')">Play Pop</button>
+
+    <h2>Download Generated Sounds</h2>
+    <p>Click below to download each sound. Save them in <code>public/sounds/</code></p>
+
+    <button class="sound-button download-button" onclick="downloadSound('default', 'notification.mp3')">
+      Download notification.mp3
+    </button>
+    <button class="sound-button download-button" onclick="downloadSound('ding', 'ding.mp3')">
+      Download ding.mp3
+    </button>
+    <button class="sound-button download-button" onclick="downloadSound('bell', 'bell.mp3')">
+      Download bell.mp3
+    </button>
+    <button class="sound-button download-button" onclick="downloadSound('chime', 'chime.mp3')">
+      Download chime.mp3
+    </button>
+    <button class="sound-button download-button" onclick="downloadSound('pop', 'pop.mp3')">
+      Download pop.mp3
+    </button>
+
+    <div class="instruction">
+      <h3>Instructions:</h3>
+      <ol>
+        <li>Open this file in your browser</li>
+        <li>Preview each sound using the "Play" buttons</li>
+        <li>Download the sounds you like using the "Download" buttons</li>
+        <li>Save them in the <code>public/sounds/</code> directory of your project</li>
+        <li>Or replace them with professional audio files from sound libraries</li>
+      </ol>
+    </div>
+  </div>
+
+  <script>
+    const soundConfigs = {
+      default: [
+        { freq: 800, time: 0, gain: 0 },
+        { freq: 800, time: 0.05, gain: 0.3 },
+        { freq: 800, time: 0.2, gain: 0 }
+      ],
+      ding: [
+        { freq: 1200, time: 0, gain: 0 },
+        { freq: 1200, time: 0.03, gain: 0.4 },
+        { freq: 1200, time: 0.3, gain: 0 }
+      ],
+      bell: [
+        { freq: 650, time: 0, gain: 0 },
+        { freq: 650, time: 0.05, gain: 0.3 },
+        { freq: 550, time: 0.15, gain: 0.2 },
+        { freq: 450, time: 0.35, gain: 0 }
+      ],
+      chime: [
+        { freq: 1000, time: 0, gain: 0 },
+        { freq: 1000, time: 0.05, gain: 0.3 },
+        { freq: 1200, time: 0.15, gain: 0.25 },
+        { freq: 1400, time: 0.25, gain: 0.2 },
+        { freq: 1400, time: 0.4, gain: 0 }
+      ],
+      pop: [
+        { freq: 600, time: 0, gain: 0 },
+        { freq: 600, time: 0.02, gain: 0.4 },
+        { freq: 600, time: 0.15, gain: 0 }
+      ]
+    };
+
+    function playSound(type) {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      const config = soundConfigs[type];
+      oscillator.frequency.value = config[0].freq;
+      oscillator.type = type === 'bell' ? 'triangle' : type === 'pop' ? 'square' : 'sine';
+
+      config.forEach((point, index) => {
+        const time = audioContext.currentTime + point.time;
+        gainNode.gain.linearRampToValueAtTime(point.gain, time);
+        if (index < config.length - 1) {
+          oscillator.frequency.linearRampToValueAtTime(config[index + 1].freq, time);
+        }
+      });
+
+      const duration = config[config.length - 1].time;
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + duration);
+
+      setTimeout(() => audioContext.close(), duration * 1000 + 100);
+    }
+
+    async function downloadSound(type, filename) {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const config = soundConfigs[type];
+      const duration = config[config.length - 1].time;
+      const sampleRate = audioContext.sampleRate;
+      const numSamples = Math.floor(duration * sampleRate);
+
+      // Create offline context
+      const offlineContext = new OfflineAudioContext(1, numSamples, sampleRate);
+      const oscillator = offlineContext.createOscillator();
+      const gainNode = offlineContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(offlineContext.destination);
+
+      oscillator.frequency.value = config[0].freq;
+      oscillator.type = type === 'bell' ? 'triangle' : type === 'pop' ? 'square' : 'sine';
+
+      config.forEach((point, index) => {
+        gainNode.gain.linearRampToValueAtTime(point.gain, point.time);
+        if (index < config.length - 1) {
+          oscillator.frequency.linearRampToValueAtTime(config[index + 1].freq, point.time);
+        }
+      });
+
+      oscillator.start(0);
+      oscillator.stop(duration);
+
+      // Render audio
+      const audioBuffer = await offlineContext.startRendering();
+
+      // Convert to WAV
+      const wavBlob = audioBufferToWav(audioBuffer);
+
+      // Create download link
+      const url = URL.createObjectURL(wavBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename.replace('.mp3', '.wav'); // Browser can only generate WAV
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      alert('Downloaded as WAV format. You can convert to MP3 using an online converter or ffmpeg.');
+    }
+
+    function audioBufferToWav(buffer) {
+      const length = buffer.length * buffer.numberOfChannels * 2;
+      const arrayBuffer = new ArrayBuffer(44 + length);
+      const view = new DataView(arrayBuffer);
+      const channels = [];
+      let offset = 0;
+      let pos = 0;
+
+      // Write WAV header
+      setUint32(0x46464952); // "RIFF"
+      setUint32(36 + length); // file length - 8
+      setUint32(0x45564157); // "WAVE"
+      setUint32(0x20746d66); // "fmt " chunk
+      setUint32(16); // length = 16
+      setUint16(1); // PCM (uncompressed)
+      setUint16(buffer.numberOfChannels);
+      setUint32(buffer.sampleRate);
+      setUint32(buffer.sampleRate * 2 * buffer.numberOfChannels); // avg. bytes/sec
+      setUint16(buffer.numberOfChannels * 2); // block-align
+      setUint16(16); // 16-bit
+      setUint32(0x61746164); // "data" - chunk
+      setUint32(length); // chunk length
+
+      // Write audio data
+      for (let i = 0; i < buffer.numberOfChannels; i++) {
+        channels.push(buffer.getChannelData(i));
+      }
+
+      while (pos < buffer.length) {
+        for (let i = 0; i < buffer.numberOfChannels; i++) {
+          let sample = Math.max(-1, Math.min(1, channels[i][pos]));
+          sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+          view.setInt16(44 + offset, sample, true);
+          offset += 2;
+        }
+        pos++;
+      }
+
+      return new Blob([arrayBuffer], { type: 'audio/wav' });
+
+      function setUint16(data) {
+        view.setUint16(pos, data, true);
+        pos += 2;
+      }
+
+      function setUint32(data) {
+        view.setUint32(pos, data, true);
+        pos += 4;
+      }
+    }
+  </script>
+</body>
+</html>

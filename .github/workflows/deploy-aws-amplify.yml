@@ -1,0 +1,82 @@
+name: Deploy to AWS Amplify
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        env:
+          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          NEXT_PUBLIC_LIVEKIT_URL: ${{ secrets.NEXT_PUBLIC_LIVEKIT_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.AWS_APP_URL }}
+        run: npm run build
+
+      - name: Deploy to AWS Amplify
+        id: deploy-amplify
+        run: |
+          # Install AWS Amplify CLI
+          npm install -g @aws-amplify/cli
+
+          # Create a zip of the build
+          zip -r build.zip .next public package.json package-lock.json next.config.ts
+
+          # Start deployment
+          DEPLOY_ID=$(aws amplify start-deployment \
+            --app-id ${{ secrets.AWS_AMPLIFY_APP_ID }} \
+            --branch-name ${{ github.event_name == 'push' && 'main' || 'preview' }} \
+            --query 'jobSummary.jobId' \
+            --output text)
+
+          echo "deployment_id=$DEPLOY_ID" >> $GITHUB_OUTPUT
+          echo "### AWS Amplify Deployment Started! :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment ID:** $DEPLOY_ID" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.event_name == 'push' && 'main' || 'preview' }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment PR with deployment status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### AWS Amplify Deployment Started! :cloud:\n\n**Deployment ID:** ${{ steps.deploy-amplify.outputs.deployment_id }}\n\nYou can monitor the deployment progress in your AWS Amplify Console.`
+            })

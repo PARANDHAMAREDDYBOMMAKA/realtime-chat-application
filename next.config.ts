@@ -3,6 +3,7 @@ import withPWA from "next-pwa";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  output: "standalone", // Required for Docker deployments
   eslint: {
     ignoreDuringBuilds: true,
   },

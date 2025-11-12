@@ -18,7 +18,6 @@ import OutgoingCallNotification from "./_components/OutgoingCallNotification";
 import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { capitalizeName } from "@/lib/utils";
-import { useMessageNotifications } from "@/hooks/useMessageNotifications";
 
 type Props = {
   params: Promise<{
@@ -62,8 +61,7 @@ const ConversationPage = ({ params }: Props) => {
   const [isInCall, setIsInCall] = useState(false);
   const [replyToMessage, setReplyToMessage] = useState<Id<"messages"> | null>(null);
 
-  // Enable message notifications for this conversation
-  useMessageNotifications(conversationId!);
+  // Note: Global notifications are handled in the layout, no need for per-conversation notifications
 
   // Update isInCall based on activeCall status and participant status
   useEffect(() => {

@@ -3,23 +3,19 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 
-// Notification sounds using Web Audio API
+// Notification sounds - now using audio files for WhatsApp-like experience
 const NOTIFICATION_SOUNDS = {
-  default: { frequency: 800, duration: 0.15, type: "sine" as OscillatorType },
-  ding: { frequency: 1200, duration: 0.2, type: "sine" as OscillatorType },
-  bell: { frequency: 650, duration: 0.25, type: "triangle" as OscillatorType },
-  chime: { frequency: 1000, duration: 0.3, type: "sine" as OscillatorType },
-  pop: { frequency: 600, duration: 0.1, type: "square" as OscillatorType },
+  default: "/sounds/notification.wav",
+  ding: "/sounds/ding.wav",
+  bell: "/sounds/bell.wav",
+  chime: "/sounds/chime.wav",
+  pop: "/sounds/pop.wav",
 } as const;
 
 export type NotificationSound = keyof typeof NOTIFICATION_SOUNDS;
 
-// Function to create a notification sound using Web Audio API
-function createNotificationSound(
-  frequency: number,
-  duration: number,
-  type: OscillatorType = "sine"
-) {
+// Fallback Web Audio API sound for browsers that don't support audio files
+function createFallbackSound() {
   try {
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
@@ -28,23 +24,23 @@ function createNotificationSound(
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
 
-    oscillator.frequency.value = frequency;
-    oscillator.type = type;
+    oscillator.frequency.value = 800;
+    oscillator.type = "sine";
 
     // Envelope for smooth sound
     gainNode.gain.setValueAtTime(0, audioContext.currentTime);
     gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.01);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
 
     oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + duration);
+    oscillator.stop(audioContext.currentTime + 0.15);
 
     // Clean up after sound finishes
     setTimeout(() => {
       audioContext.close();
-    }, duration * 1000 + 100);
+    }, 250);
   } catch (error) {
-    console.error("Error creating notification sound:", error);
+    console.error("Error creating fallback sound:", error);
   }
 }
 
@@ -87,16 +83,46 @@ export function useNotifications() {
   };
 
   const playNotificationSound = (soundName?: NotificationSound) => {
-    if (!settings?.soundEnabled) return;
+    console.log("🎵 playNotificationSound called:", {
+      soundName,
+      soundEnabled: settings?.soundEnabled,
+      customSound: settings?.customSound,
+    });
+
+    if (!settings?.soundEnabled) {
+      console.log("⏭️ Sound disabled in settings");
+      return;
+    }
 
     const sound = soundName || (settings.customSound as NotificationSound) || "default";
-    const soundConfig = NOTIFICATION_SOUNDS[sound];
+    const soundPath = NOTIFICATION_SOUNDS[sound];
 
-    createNotificationSound(
-      soundConfig.frequency,
-      soundConfig.duration,
-      soundConfig.type
-    );
+    console.log("🎵 Attempting to play sound:", { sound, soundPath });
+
+    try {
+      // Create a new audio element each time to avoid conflicts
+      const audio = new Audio(soundPath);
+      audio.volume = 0.7; // Set volume to 70%
+
+      // Play the sound
+      const playPromise = audio.play();
+
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log("✅ Audio played successfully");
+          })
+          .catch((error) => {
+            console.warn("⚠️ Audio playback failed, using fallback sound:", error);
+            // Use fallback Web Audio API sound if file doesn't exist or can't play
+            createFallbackSound();
+          });
+      }
+    } catch (error) {
+      console.error("❌ Error playing notification sound:", error);
+      // Use fallback sound on error
+      createFallbackSound();
+    }
   };
 
   const showNotification = (
