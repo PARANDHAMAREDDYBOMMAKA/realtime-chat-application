@@ -110,6 +110,9 @@ export default function Body({ conversationId, onReply }: BodyProps) {
                 type={message.type}
                 seen={seen}
                 replyTo={message.replyTo}
+                storyReplyId={message.storyReplyId}
+                storyReplyType={message.storyReplyType}
+                storyReplyContent={message.storyReplyContent}
                 onReply={onReply}
               />
               {showDateSeparator && (

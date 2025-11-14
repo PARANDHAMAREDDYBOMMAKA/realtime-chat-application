@@ -321,10 +321,164 @@ export const cleanupExpiredStories = mutation({
                 await ctx.db.delete(view._id);
             }
 
+            // Delete replies
+            const replies = await ctx.db
+                .query("storyReplies")
+                .withIndex("by_storyId", (q) => q.eq("storyId", story._id))
+                .collect();
+
+            for (const reply of replies) {
+                await ctx.db.delete(reply._id);
+            }
+
             // Delete story
             await ctx.db.delete(story._id);
         }
 
         return expiredStories.length;
+    },
+});
+
+// Send a reply to a story (creates a private message)
+export const sendStoryReply = mutation({
+    args: {
+        storyId: v.id("stories"),
+        content: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            throw new ConvexError("Unauthorized");
+        }
+
+        const currentUser = await getUserByClerjId({
+            ctx,
+            clerkId: identity.subject,
+        });
+
+        if (!currentUser) {
+            throw new ConvexError("User not found");
+        }
+
+        const story = await ctx.db.get(args.storyId);
+        if (!story) {
+            throw new ConvexError("Story not found");
+        }
+
+        // Check if story is still active
+        if (story.expiresAt < Date.now()) {
+            throw new ConvexError("Story has expired");
+        }
+
+        // Can't reply to own story
+        if (story.userId === currentUser._id) {
+            throw new ConvexError("Cannot reply to your own story");
+        }
+
+        // Create a reply record
+        await ctx.db.insert("storyReplies", {
+            storyId: args.storyId,
+            senderId: currentUser._id,
+            content: args.content,
+            createdAt: Date.now(),
+        });
+
+        // Find or create conversation with story owner
+        const friendships1 = await ctx.db
+            .query("friends")
+            .withIndex("by_user1", (q) => q.eq("user1", currentUser._id))
+            .collect();
+
+        const friendships2 = await ctx.db
+            .query("friends")
+            .withIndex("by_user2", (q) => q.eq("user2", currentUser._id))
+            .collect();
+
+        const friendship = [...friendships1, ...friendships2].find(
+            (f) => f.user1 === story.userId || f.user2 === story.userId
+        );
+
+        if (!friendship) {
+            throw new ConvexError("You must be friends to reply to stories");
+        }
+
+        // Send message to conversation
+        const conversationId = friendship.conversationId;
+
+        // Create message with story reply context
+        const messageId = await ctx.db.insert("messages", {
+            senderId: currentUser._id,
+            conversationId,
+            type: "text",
+            content: [args.content],
+            createdAt: Date.now(),
+            storyReplyId: args.storyId,
+            storyReplyType: story.type,
+            storyReplyContent: story.content,
+        });
+
+        // Update conversation's last message
+        await ctx.db.patch(conversationId, {
+            lastMessageId: messageId,
+        });
+
+        return messageId;
+    },
+});
+
+// Get replies to a story (only story owner can see)
+export const getStoryReplies = query({
+    args: {
+        storyId: v.id("stories"),
+    },
+    handler: async (ctx, args) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            throw new ConvexError("Unauthorized");
+        }
+
+        const currentUser = await getUserByClerjId({
+            ctx,
+            clerkId: identity.subject,
+        });
+
+        if (!currentUser) {
+            throw new ConvexError("User not found");
+        }
+
+        const story = await ctx.db.get(args.storyId);
+        if (!story) {
+            throw new ConvexError("Story not found");
+        }
+
+        // Only story owner can see replies
+        if (story.userId !== currentUser._id) {
+            throw new ConvexError("Unauthorized");
+        }
+
+        const replies = await ctx.db
+            .query("storyReplies")
+            .withIndex("by_storyId", (q) => q.eq("storyId", args.storyId))
+            .collect();
+
+        const repliesWithSenderDetails = await Promise.all(
+            replies.map(async (reply) => {
+                const sender = await ctx.db.get(reply.senderId);
+                if (!sender) return null;
+
+                return {
+                    id: reply._id,
+                    content: reply.content,
+                    createdAt: reply.createdAt,
+                    sender: {
+                        id: sender._id,
+                        username: sender.username,
+                        imageUrl: sender.imageUrl,
+                    },
+                };
+            })
+        );
+
+        return repliesWithSenderDetails.filter((r) => r !== null).sort((a, b) => a!.createdAt - b!.createdAt);
     },
 });

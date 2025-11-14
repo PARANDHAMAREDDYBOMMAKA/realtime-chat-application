@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useNotifications } from "./useNotifications";
+import { usePathname } from "next/navigation";
 
 /**
  * Global notification hook that monitors ALL conversations for new messages
@@ -9,9 +10,18 @@ import { useNotifications } from "./useNotifications";
  */
 export function useGlobalNotifications() {
   const { settings, playNotificationSound } = useNotifications();
+  const pathname = usePathname();
 
   // Get all conversations the user is part of
   const conversations = useQuery(api.conversations.get);
+
+  // Get current user info
+  const currentUser = useQuery(api.user.getCurrent);
+
+  // Extract current conversation ID from pathname
+  const currentConversationId = pathname?.startsWith("/conversations/")
+    ? pathname.split("/")[2]
+    : null;
 
   // Track last message timestamps for each conversation
   const lastTimestampsRef = useRef<Record<string, number>>({});
@@ -25,11 +35,12 @@ export function useGlobalNotifications() {
   }, []);
 
   useEffect(() => {
-    if (!conversations || !settings) {
+    if (!conversations || !settings || !currentUser) {
       console.log("⏭️ Global notifications: waiting for data", {
         hasConversations: !!conversations,
         conversationCount: conversations?.length,
         hasSettings: !!settings,
+        hasCurrentUser: !!currentUser,
       });
       return;
     }
@@ -73,12 +84,31 @@ export function useGlobalNotifications() {
           previousTimestamp,
           currentTimestamp,
           from: lastMessage.sender,
+          senderId: (lastMessage as any).senderId,
           type: lastMessage.type,
           isGroup: conv.conversation.isGroup,
         });
 
         // Update timestamp
         lastTimestampsRef.current[conversationId] = currentTimestamp;
+
+        // Check if message is from current user (don't notify for own messages)
+        const isOwnMessage = (lastMessage as any).senderId &&
+          currentUser._id &&
+          (lastMessage as any).senderId === currentUser._id;
+
+        // Check if user is viewing this conversation (don't play sound if actively viewing)
+        const isViewingConversation = currentConversationId === conversationId;
+
+        if (isOwnMessage) {
+          console.log("⏭️ Skipping notification - message from current user");
+          return;
+        }
+
+        if (isViewingConversation) {
+          console.log("⏭️ Skipping notification - user is viewing this conversation");
+          return;
+        }
 
         const senderName = lastMessage.sender || "Someone";
         const conversationName = conv.conversation.isGroup
@@ -87,7 +117,7 @@ export function useGlobalNotifications() {
 
         const messagePreview = lastMessage.content;
 
-        // Always play sound if enabled
+        // Always play sound if enabled (and not from self or current conversation)
         if (settings.soundEnabled) {
           console.log("🔊 Playing notification sound...");
           playNotificationSound();
@@ -151,5 +181,5 @@ export function useGlobalNotifications() {
         }
       }
     });
-  }, [conversations, settings, playNotificationSound]);
+  }, [conversations, settings, playNotificationSound, currentUser, currentConversationId]);
 }

@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@/components/ui/visually-hidden";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { X, ChevronLeft, ChevronRight, Trash2, Eye, Volume2, VolumeX } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { X, ChevronLeft, ChevronRight, Trash2, Eye, Volume2, VolumeX, Send } from "lucide-react";
 import { format } from "date-fns";
 import { Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -53,12 +54,15 @@ export default function StoryViewer({ stories, onClose }: StoryViewerProps) {
   const [showViewersDialog, setShowViewersDialog] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [replyText, setReplyText] = useState("");
+  const [isSendingReply, setIsSendingReply] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const markAsViewed = useMutation(api.stories.markAsViewed);
   const deleteStory = useMutation(api.stories.deleteStory);
+  const sendStoryReply = useMutation(api.stories.sendStoryReply);
 
   const currentStory = stories.stories[currentStoryIndex];
 
@@ -157,6 +161,26 @@ export default function StoryViewer({ stories, onClose }: StoryViewerProps) {
     } catch (error) {
       toast.error("Failed to delete story");
       console.error(error);
+    }
+  };
+
+  const handleSendReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replyText.trim() || isSendingReply) return;
+
+    setIsSendingReply(true);
+    try {
+      await sendStoryReply({
+        storyId: currentStory.id,
+        content: replyText.trim(),
+      });
+      toast.success("Reply sent");
+      setReplyText("");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send reply");
+      console.error(error);
+    } finally {
+      setIsSendingReply(false);
     }
   };
 
@@ -318,6 +342,30 @@ export default function StoryViewer({ stories, onClose }: StoryViewerProps) {
               <Eye className="h-4 w-4 mr-2" />
               {currentStory.viewersCount} {currentStory.viewersCount === 1 ? "view" : "views"}
             </Button>
+          </div>
+        )}
+
+        {/* Reply input - only for non-owner stories */}
+        {!stories.isCurrentUser && (
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+            <form onSubmit={handleSendReply} className="flex items-center gap-2">
+              <Input
+                type="text"
+                placeholder="Send a message..."
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:bg-white/20"
+                disabled={isSendingReply}
+              />
+              <Button
+                type="submit"
+                size="icon"
+                disabled={!replyText.trim() || isSendingReply}
+                className="bg-primary hover:bg-primary/90"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </form>
           </div>
         )}
       </DialogContent>

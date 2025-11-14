@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { MoreVertical, Trash2, Smile, Reply } from "lucide-react";
+import { MoreVertical, Trash2, Smile, Reply, Forward } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,10 +24,11 @@ type Props = {
   onDelete: () => void;
   onReact: () => void;
   onReply?: () => void;
+  onForward?: () => void;
   fromCurrentUser: boolean;
 };
 
-const MessageActions = ({ onDelete, onReact, onReply, fromCurrentUser }: Props) => {
+const MessageActions = ({ onDelete, onReact, onReply, onForward, fromCurrentUser }: Props) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -41,6 +42,13 @@ const MessageActions = ({ onDelete, onReact, onReply, fromCurrentUser }: Props) 
     // Small delay to ensure dropdown is closed before opening reaction picker
     setTimeout(() => {
       onReact();
+    }, 100);
+  };
+
+  const handleForward = () => {
+    setOpen(false);
+    setTimeout(() => {
+      onForward?.();
     }, 100);
   };
 
@@ -67,6 +75,12 @@ const MessageActions = ({ onDelete, onReact, onReply, fromCurrentUser }: Props) 
             <Smile className="h-4 w-4 mr-2" />
             Add Reaction
           </DropdownMenuItem>
+          {onForward && (
+            <DropdownMenuItem onClick={handleForward} className="cursor-pointer">
+              <Forward className="h-4 w-4 mr-2" />
+              Forward
+            </DropdownMenuItem>
+          )}
           {fromCurrentUser && (
             <DropdownMenuItem
               onClick={() => setShowDeleteDialog(true)}

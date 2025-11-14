@@ -6,7 +6,7 @@ import { Id } from "./_generated/dataModel";
 
 export const get = query({
   args: {},
-  handler: async (ctx, args) => {
+  handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new ConvexError("Unauthorized");
@@ -42,7 +42,7 @@ export const get = query({
     );
 
     const conversationsWithDetails = await Promise.all(
-      conversations.map(async (conversation, index) => {
+      conversations.map(async (conversation) => {
         const allConversationMemberships = await ctx.db
           .query("conversationMembers")
           .withIndex("by_conversationId", (q) =>
@@ -158,6 +158,7 @@ const getLastMessageDetails = async ({
   return {
     content,
     sender: sender.username,
+    senderId: message.senderId,
     timestamp: message.createdAt ?? message._creationTime,
     type: message.type,
   };

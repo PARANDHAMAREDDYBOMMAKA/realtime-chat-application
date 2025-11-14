@@ -1,5 +1,6 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { internalMutation, internalQuery, query } from "./_generated/server";
+import { getUserByClerjId } from "./_utils";
 
 export const create = internalMutation({
     args: {
@@ -46,5 +47,39 @@ export const update = internalMutation({
                 email: args.email,
             });
         }
+    }
+})
+
+export const getCurrent = query({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            throw new ConvexError("Unauthorized");
+        }
+
+        const currentUser = await getUserByClerjId({
+            ctx,
+            clerkId: identity.subject,
+        });
+
+        if (!currentUser) {
+            throw new ConvexError("User not found");
+        }
+
+        return currentUser;
+    }
+})
+
+export const getAll = query({
+    args: {},
+    handler: async (ctx) => {
+        const identity = await ctx.auth.getUserIdentity();
+        if (!identity) {
+            throw new ConvexError("Unauthorized");
+        }
+
+        const users = await ctx.db.query("users").collect();
+        return users;
     }
 })

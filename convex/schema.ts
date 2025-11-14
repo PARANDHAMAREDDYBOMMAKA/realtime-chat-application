@@ -66,6 +66,11 @@ export default defineSchema({
         createdAt: v.optional(v.number()),
         editedAt: v.optional(v.number()),
         replyTo: v.optional(v.id("messages")),
+        // Story reply metadata
+        storyReplyId: v.optional(v.id("stories")),
+        storyReplyType: v.optional(v.union(v.literal("text"), v.literal("image"), v.literal("video"))),
+        storyReplyContent: v.optional(v.array(v.string())),
+        // Encryption support
         isEncrypted: v.optional(v.boolean()),
         encryptedContent: v.optional(v.string()),
         iv: v.optional(v.string()),
@@ -146,6 +151,14 @@ export default defineSchema({
         viewerId: v.id("users"),
         viewedAt: v.number(),
     }).index("by_storyId", ["storyId"]).index("by_viewerId", ["viewerId"]).index("by_story_viewer", ["storyId", "viewerId"]),
+
+    // Story replies (private messages sent in response to a story)
+    storyReplies: defineTable({
+        storyId: v.id("stories"),
+        senderId: v.id("users"),
+        content: v.string(),
+        createdAt: v.number(),
+    }).index("by_storyId", ["storyId"]).index("by_senderId", ["senderId"]).index("by_story_sender", ["storyId", "senderId"]),
 
     // Support tickets
     supportTickets: defineTable({
