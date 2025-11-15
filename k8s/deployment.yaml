@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: real-time-chat
+  labels:
+    app: real-time-chat
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: real-time-chat
+  template:
+    metadata:
+      labels:
+        app: real-time-chat
+    spec:
+      containers:
+      - name: real-time-chat
+        image: ${DOCKER_IMAGE}
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: NEXT_TELEMETRY_DISABLED
+          value: "1"
+        - name: PORT
+          value: "3000"
+        - name: HOSTNAME
+          value: "0.0.0.0"
+        # Add environment variables from ConfigMap
+        envFrom:
+        - configMapRef:
+            name: real-time-chat-config
+        - secretRef:
+            name: real-time-chat-secrets
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      imagePullSecrets:
+      - name: regcred
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: real-time-chat-service
+  labels:
+    app: real-time-chat
+spec:
+  type: ClusterIP
+  selector:
+    app: real-time-chat
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: real-time-chat-ingress
+  annotations:
+    # k3s uses Traefik by default - these annotations work with Traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    # Uncomment for automatic HTTPS redirect
+    # traefik.ingress.kubernetes.io/router.middlewares: default-redirect-https@kubernetescrd
+    # For cert-manager (Let's Encrypt):
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: traefik  # k3s uses Traefik by default
+  rules:
+  - host: chat.yourdomain.com  # Replace with your domain or use your-server-ip.nip.io for testing
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: real-time-chat-service
+            port:
+              number: 80
+  # Uncomment for TLS/HTTPS
+  # tls:
+  # - hosts:
+  #   - chat.yourdomain.com
+  #   secretName: real-time-chat-tls

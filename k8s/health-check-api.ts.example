@@ -1,0 +1,25 @@
+// Create this file at: app/api/health/route.ts
+// This is a health check endpoint for Kubernetes probes
+
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  try {
+    // Add any health checks here (database connection, etc.)
+    return NextResponse.json(
+      {
+        status: 'healthy',
+        timestamp: new Date().toISOString()
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        status: 'unhealthy',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 503 }
+    );
+  }
+}

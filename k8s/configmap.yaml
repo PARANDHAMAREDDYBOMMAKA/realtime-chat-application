@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: real-time-chat-config
+data:
+  # Add your non-sensitive environment variables here
+  # Example:
+  # NEXT_PUBLIC_APP_URL: "https://chat.yourdomain.com"
+  # NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "your_clerk_publishable_key"
+  # NEXT_PUBLIC_CONVEX_URL: "your_convex_url"

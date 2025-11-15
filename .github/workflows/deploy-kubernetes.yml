@@ -1,0 +1,198 @@
+name: Build and Deploy to k3s
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Alternative: Login to Docker Hub (uncomment if using Docker Hub)
+      # - name: Log in to Docker Hub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_TELEMETRY_DISABLED=1
+            NODE_ENV=production
+
+  deploy-to-kubernetes:
+    name: Deploy to k3s
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'latest'
+
+      # Option 1: Using kubeconfig from secrets
+      - name: Configure kubectl with kubeconfig
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG }}
+        run: |
+          mkdir -p $HOME/.kube
+          echo "$KUBECONFIG_CONTENT" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      # Option 2: Using individual cluster credentials (uncomment if preferred)
+      # - name: Configure kubectl with cluster credentials
+      #   run: |
+      #     kubectl config set-cluster my-cluster \
+      #       --server=${{ secrets.K8S_CLUSTER_URL }} \
+      #       --certificate-authority=<(echo "${{ secrets.K8S_CA_CERT }}" | base64 -d)
+      #     kubectl config set-credentials github-actions \
+      #       --token=${{ secrets.K8S_TOKEN }}
+      #     kubectl config set-context my-context \
+      #       --cluster=my-cluster \
+      #       --user=github-actions \
+      #       --namespace=default
+      #     kubectl config use-context my-context
+
+      - name: Verify kubectl connection
+        run: |
+          kubectl version --client
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Create namespace if not exists
+        run: |
+          kubectl create namespace ${{ secrets.K8S_NAMESPACE || 'default' }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create image pull secret
+        run: |
+          kubectl create secret docker-registry regcred \
+            --docker-server=${{ env.REGISTRY }} \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --namespace=${{ secrets.K8S_NAMESPACE || 'default' }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # Alternative for Docker Hub (uncomment if using Docker Hub)
+      # - name: Create Docker Hub pull secret
+      #   run: |
+      #     kubectl create secret docker-registry regcred \
+      #       --docker-server=docker.io \
+      #       --docker-username=${{ secrets.DOCKERHUB_USERNAME }} \
+      #       --docker-password=${{ secrets.DOCKERHUB_TOKEN }} \
+      #       --namespace=${{ secrets.K8S_NAMESPACE || 'default' }} \
+      #       --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create/Update ConfigMap
+        run: |
+          kubectl apply -f k8s/configmap.yaml -n ${{ secrets.K8S_NAMESPACE || 'default' }}
+
+      - name: Create/Update Secrets
+        env:
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CONVEX_DEPLOYMENT: ${{ secrets.CONVEX_DEPLOYMENT }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          LIVEKIT_URL: ${{ secrets.LIVEKIT_URL }}
+          CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
+        run: |
+          kubectl create secret generic real-time-chat-secrets \
+            --from-literal=CLERK_SECRET_KEY="$CLERK_SECRET_KEY" \
+            --from-literal=CONVEX_DEPLOYMENT="$CONVEX_DEPLOYMENT" \
+            --from-literal=LIVEKIT_API_KEY="$LIVEKIT_API_KEY" \
+            --from-literal=LIVEKIT_API_SECRET="$LIVEKIT_API_SECRET" \
+            --from-literal=LIVEKIT_URL="$LIVEKIT_URL" \
+            --from-literal=CLERK_WEBHOOK_SECRET="$CLERK_WEBHOOK_SECRET" \
+            --namespace=${{ secrets.K8S_NAMESPACE || 'default' }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Update deployment with new image
+        run: |
+          # Get the first tag from the build metadata
+          IMAGE_TAG=$(echo "${{ needs.build-and-push.outputs.image-tag }}" | head -n1)
+          echo "Deploying image: $IMAGE_TAG"
+
+          # Update the deployment manifest with the new image
+          sed "s|\${DOCKER_IMAGE}|$IMAGE_TAG|g" k8s/deployment.yaml > k8s/deployment-processed.yaml
+
+          kubectl apply -f k8s/deployment-processed.yaml -n ${{ secrets.K8S_NAMESPACE || 'default' }}
+
+      - name: Wait for deployment to complete
+        run: |
+          kubectl rollout status deployment/real-time-chat \
+            -n ${{ secrets.K8S_NAMESPACE || 'default' }} \
+            --timeout=5m
+
+      - name: Get deployment status
+        if: always()
+        run: |
+          echo "=== Deployment Status ==="
+          kubectl get deployment real-time-chat -n ${{ secrets.K8S_NAMESPACE || 'default' }}
+          echo ""
+          echo "=== Pods ==="
+          kubectl get pods -l app=real-time-chat -n ${{ secrets.K8S_NAMESPACE || 'default' }}
+          echo ""
+          echo "=== Services ==="
+          kubectl get svc real-time-chat-service -n ${{ secrets.K8S_NAMESPACE || 'default' }}
+          echo ""
+          echo "=== Ingress ==="
+          kubectl get ingress real-time-chat-ingress -n ${{ secrets.K8S_NAMESPACE || 'default' }} || true
+
+      - name: Get pod logs on failure
+        if: failure()
+        run: |
+          echo "=== Recent Pod Logs ==="
+          kubectl logs -l app=real-time-chat \
+            -n ${{ secrets.K8S_NAMESPACE || 'default' }} \
+            --tail=50 \
+            --all-containers=true || true
