@@ -76,6 +76,18 @@ export const create = mutation({
             }
         }
 
+        // Invalidate cache for this conversation
+        const members = await ctx.db.query("conversationMembers")
+            .withIndex("by_conversationId", (q) => q.eq("conversationId", args.conversationId))
+            .collect();
+        const memberIds = members.map(m => m.memberId);
+
+        ctx.scheduler.runAfter(0, api.cache.invalidateOnMessageSent, {
+            conversationId: args.conversationId,
+            memberIds,
+            senderId: currentUser._id,
+        });
+
         return message;
     }
 })
@@ -161,6 +173,18 @@ export const deleteMessage = mutation({
                 lastMessageId: latestMessage?._id,
             });
         }
+
+        // Invalidate cache after message deletion
+        const members = await ctx.db.query("conversationMembers")
+            .withIndex("by_conversationId", (q) => q.eq("conversationId", message.conversationId))
+            .collect();
+        const memberIds = members.map(m => m.memberId);
+
+        ctx.scheduler.runAfter(0, api.cache.invalidateOnMessageSent, {
+            conversationId: message.conversationId,
+            memberIds,
+            senderId: currentUser._id,
+        });
 
         return { success: true };
     }

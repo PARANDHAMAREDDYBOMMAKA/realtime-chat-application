@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getUserByClerjId } from "./_utils";
+import { api } from "./_generated/api";
 
 export const addReaction = mutation({
     args: {
@@ -52,6 +53,12 @@ export const addReaction = mutation({
         if (existingReaction) {
             // Remove reaction if it already exists (toggle behavior)
             await ctx.db.delete(existingReaction._id);
+
+            // Invalidate reaction cache
+            ctx.scheduler.runAfter(0, api.cache.invalidateOnReactionChange, {
+                messageId: args.messageId,
+            });
+
             return { action: "removed" };
         }
 
@@ -61,6 +68,11 @@ export const addReaction = mutation({
             userId: currentUser._id,
             emoji: args.emoji,
             createdAt: Date.now(),
+        });
+
+        // Invalidate reaction cache
+        ctx.scheduler.runAfter(0, api.cache.invalidateOnReactionChange, {
+            messageId: args.messageId,
         });
 
         return { action: "added", reactionId };
@@ -98,6 +110,11 @@ export const removeReaction = mutation({
         }
 
         await ctx.db.delete(args.reactionId);
+
+        // Invalidate reaction cache
+        ctx.scheduler.runAfter(0, api.cache.invalidateOnReactionChange, {
+            messageId: reaction.messageId,
+        });
 
         return { success: true };
     },
