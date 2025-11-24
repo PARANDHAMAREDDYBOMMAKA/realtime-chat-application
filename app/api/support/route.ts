@@ -1,24 +1,24 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import { friendCache, userCache } from '@/lib/redis';
-import { ConvexHttpClient } from 'convex/browser';
+import { userCache } from '@/lib/redis';
+import { getAuthenticatedConvexClient } from '@/lib/convex/serverClient';
 import { api } from '@/convex/_generated/api';
+import { cacheService, CacheKeys, CacheTTL } from '@/lib/redis/cacheService';
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 /**
  * @swagger
- * /api/friends:
+ * /api/support:
  *   get:
- *     summary: Get user's friend list
- *     description: Retrieves the authenticated user's friend list with Redis caching (TTL 5 minutes)
+ *     summary: Get support tickets
+ *     description: Retrieves all support tickets for the authenticated user with Redis caching (TTL 1 week)
  *     tags:
- *       - Friends
+ *       - Support
  *     security:
  *       - ClerkAuth: []
  *     responses:
  *       200:
- *         description: Friends retrieved successfully
+ *         description: Support tickets retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -28,16 +28,21 @@ const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
  *                 properties:
  *                   _id:
  *                     type: string
- *                   username:
+ *                   userId:
  *                     type: string
- *                   email:
+ *                   subject:
  *                     type: string
- *                   imageUrl:
+ *                   description:
  *                     type: string
  *                   status:
  *                     type: string
- *                     enum: [online, offline, away]
- *                   lastSeen:
+ *                     enum: [open, in_progress, closed]
+ *                   priority:
+ *                     type: string
+ *                     enum: [low, medium, high, urgent]
+ *                   createdAt:
+ *                     type: number
+ *                   updatedAt:
  *                     type: number
  *       401:
  *         description: Unauthorized
@@ -57,7 +62,9 @@ export async function GET() {
       );
     }
 
-    // Get user from cache
+    const convex = await getAuthenticatedConvexClient();
+
+    // Get user from cache first
     const user = await userCache.getByClerkId(clerkId, async () => {
       return await convex.query(api.user.getCurrent);
     });
@@ -69,14 +76,19 @@ export async function GET() {
       );
     }
 
-    // Cache friend list for 5 minutes
-    const friends = await friendCache.getList(user._id, async () => {
-      return await convex.query(api.friends.get);
-    });
+    // Cache support tickets
+    const cacheKey = CacheKeys.supportTickets(user._id);
+    const tickets = await cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        return await convex.query(api.support.getUserTickets);
+      },
+      CacheTTL.SUPPORT_TICKETS
+    );
 
-    return NextResponse.json(friends);
+    return NextResponse.json(tickets);
   } catch (error) {
-    console.error('Error fetching friends:', error);
+    console.error('Error fetching support tickets:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

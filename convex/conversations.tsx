@@ -1,8 +1,6 @@
 import { ConvexError } from "convex/values";
 import { getUserByClerjId } from "./_utils";
 import { query } from "./_generated/server";
-import { QueryCtx, MutationCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
 
 export const get = query({
   args: {},
@@ -41,19 +39,81 @@ export const get = query({
       })
     );
 
+    // Batch fetch all memberships for all conversations
+    const allMembershipsPromises = conversations.map(conversation =>
+      ctx.db
+        .query("conversationMembers")
+        .withIndex("by_conversationId", (q) => q.eq("conversationId", conversation._id))
+        .collect()
+    );
+    const allMembershipsResults = await Promise.all(allMembershipsPromises);
+    const membershipsMap = new Map(
+      conversations.map((conv, idx) => [conv._id, allMembershipsResults[idx]])
+    );
+
+    // Batch fetch last messages
+    const lastMessageIds = conversations
+      .filter(c => c.lastMessageId)
+      .map(c => c.lastMessageId!);
+    const lastMessagesData = await Promise.all(
+      lastMessageIds.map(id => ctx.db.get(id))
+    );
+    const lastMessagesMap = new Map(
+      lastMessageIds.map((id, idx) => [id, lastMessagesData[idx]])
+    );
+
+    // Get all sender IDs for last messages
+    const senderIds = lastMessagesData
+      .filter(m => m !== null)
+      .map(m => m!.senderId);
+    const sendersData = await Promise.all(
+      [...new Set(senderIds)].map(id => ctx.db.get(id))
+    );
+    const sendersMap = new Map(
+      sendersData.filter(s => s !== null).map(s => [s!._id, s!])
+    );
+
+    // Get all other member IDs for DM conversations
+    const otherMemberIds = conversations
+      .filter(c => !c.isGroup)
+      .map(c => {
+        const members = membershipsMap.get(c._id) || [];
+        const otherMembership = members.find(m => m.memberId !== currentUser._id);
+        return otherMembership?.memberId;
+      })
+      .filter(id => id !== undefined);
+    const otherMembersData = await Promise.all(
+      otherMemberIds.map(id => ctx.db.get(id!))
+    );
+    const otherMembersMap = new Map(
+      otherMembersData.filter(m => m !== null).map(m => [m!._id, m!])
+    );
+
     const conversationsWithDetails = await Promise.all(
       conversations.map(async (conversation) => {
-        const allConversationMemberships = await ctx.db
-          .query("conversationMembers")
-          .withIndex("by_conversationId", (q) =>
-            q.eq("conversationId", conversation?._id)
-          )
-          .collect();
+        const allConversationMemberships = membershipsMap.get(conversation._id) || [];
 
-        const lastMessage = await getLastMessageDetails({
-          ctx,
-          id: conversation.lastMessageId,
-        });
+        // Get last message details from cache
+        let lastMessage = null;
+        if (conversation.lastMessageId) {
+          const message = lastMessagesMap.get(conversation.lastMessageId);
+          if (message) {
+            const sender = sendersMap.get(message.senderId);
+            if (sender) {
+              const content = getMessageContent(
+                message.type,
+                message.content as unknown as string
+              );
+              lastMessage = {
+                content,
+                sender: sender.username,
+                senderId: message.senderId,
+                timestamp: message.createdAt ?? message._creationTime,
+                type: message.type,
+              };
+            }
+          }
+        }
 
         const currentUserMembership = conversationMemberships.find(
           (m) => m.conversationId === conversation._id
@@ -64,6 +124,7 @@ export const get = query({
           const lastSeenMessageId = currentUserMembership.lastSeenMessage;
 
           if (!lastSeenMessageId) {
+            // Count all messages from others - limit to recent for performance
             const allMessages = await ctx.db
               .query("messages")
               .withIndex("by_conversationId", (q) =>
@@ -96,11 +157,11 @@ export const get = query({
         if (conversation.isGroup) {
           return { conversation, lastMessage, unreadCount };
         } else {
-          const otherMembership = allConversationMemberships.filter(
+          const otherMembership = allConversationMemberships.find(
             (membership) => membership.memberId !== currentUser._id
-          )[0];
+          );
 
-          const otherMember = await ctx.db.get(otherMembership.memberId);
+          const otherMember = otherMembership ? otherMembersMap.get(otherMembership.memberId) : undefined;
 
           let userStatus: "online" | "offline" | "away" = "offline";
           if (otherMember) {
@@ -135,34 +196,6 @@ export const get = query({
     return sortedConversations;
   },
 });
-
-const getLastMessageDetails = async ({
-  ctx,
-  id,
-}: {
-  ctx: QueryCtx | MutationCtx;
-  id: Id<"messages"> | undefined;
-}) => {
-  if (!id) return null;
-  const message = await ctx.db.get(id);
-  if (!message) return null;
-
-  const sender = await ctx.db.get(message.senderId);
-  if (!sender) return null;
-
-  const content = getMessageContent(
-    message.type,
-    message.content as unknown as string
-  );
-
-  return {
-    content,
-    sender: sender.username,
-    senderId: message.senderId,
-    timestamp: message.createdAt ?? message._creationTime,
-    type: message.type,
-  };
-};
 
 const getMessageContent = (type: string, content: string | string[]) => {
   switch (type) {

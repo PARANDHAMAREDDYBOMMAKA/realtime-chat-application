@@ -1,16 +1,51 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import { userCache } from '@/lib/redis';
-import { ConvexHttpClient } from 'convex/browser';
+import { getAuthenticatedConvexClient } from '@/lib/convex/serverClient';
 import { api } from '@/convex/_generated/api';
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-
 /**
- * GET /api/user/current
- *
- * Get current user profile with Redis caching
- * Cache TTL: 10 minutes
+ * @swagger
+ * /api/user/current:
+ *   get:
+ *     summary: Get current user profile
+ *     description: Retrieves the authenticated user's profile information with Redis caching (TTL 10 minutes)
+ *     tags:
+ *       - User
+ *     security:
+ *       - ClerkAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                   description: User ID
+ *                 username:
+ *                   type: string
+ *                   description: User's username
+ *                 email:
+ *                   type: string
+ *                   description: User's email
+ *                 imageUrl:
+ *                   type: string
+ *                   description: User's profile image URL
+ *                 status:
+ *                   type: string
+ *                   enum: [online, offline, away]
+ *                 lastSeen:
+ *                   type: number
+ *                   description: Last seen timestamp
+ *       401:
+ *         description: Unauthorized - User not authenticated
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
  */
 export async function GET() {
   try {
@@ -25,6 +60,7 @@ export async function GET() {
 
     // Use Redis cache with automatic fallback to Convex
     const user = await userCache.getByClerkId(clerkId, async () => {
+      const convex = await getAuthenticatedConvexClient();
       const userData = await convex.query(api.user.getCurrent);
       return userData;
     });

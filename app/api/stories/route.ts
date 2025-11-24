@@ -1,24 +1,23 @@
 import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import { friendCache, userCache } from '@/lib/redis';
-import { ConvexHttpClient } from 'convex/browser';
+import { userCache } from '@/lib/redis';
+import { getAuthenticatedConvexClient } from '@/lib/convex/serverClient';
 import { api } from '@/convex/_generated/api';
-
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+import { cacheService, CacheKeys, CacheTTL } from '@/lib/redis/cacheService';
 
 /**
  * @swagger
- * /api/friends:
+ * /api/stories:
  *   get:
- *     summary: Get user's friend list
- *     description: Retrieves the authenticated user's friend list with Redis caching (TTL 5 minutes)
+ *     summary: Get friends' stories
+ *     description: Retrieves stories from user's friends with Redis caching (TTL 24 hours)
  *     tags:
- *       - Friends
+ *       - Stories
  *     security:
  *       - ClerkAuth: []
  *     responses:
  *       200:
- *         description: Friends retrieved successfully
+ *         description: Stories retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -28,17 +27,26 @@ const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
  *                 properties:
  *                   _id:
  *                     type: string
- *                   username:
+ *                   userId:
  *                     type: string
- *                   email:
+ *                   userName:
  *                     type: string
- *                   imageUrl:
+ *                   userImage:
  *                     type: string
- *                   status:
+ *                   content:
  *                     type: string
- *                     enum: [online, offline, away]
- *                   lastSeen:
+ *                     description: Story media URL
+ *                   type:
+ *                     type: string
+ *                     enum: [image, video]
+ *                   createdAt:
  *                     type: number
+ *                   expiresAt:
+ *                     type: number
+ *                   views:
+ *                     type: array
+ *                     items:
+ *                       type: string
  *       401:
  *         description: Unauthorized
  *       404:
@@ -57,7 +65,9 @@ export async function GET() {
       );
     }
 
-    // Get user from cache
+    const convex = await getAuthenticatedConvexClient();
+
+    // Get user from cache first
     const user = await userCache.getByClerkId(clerkId, async () => {
       return await convex.query(api.user.getCurrent);
     });
@@ -69,14 +79,21 @@ export async function GET() {
       );
     }
 
-    // Cache friend list for 5 minutes
-    const friends = await friendCache.getList(user._id, async () => {
-      return await convex.query(api.friends.get);
-    });
+    // Cache stories feed
+    const cacheKey = CacheKeys.storyFeed(user._id);
+    const stories = await cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        return await convex.query(api.stories.getFriendsStories, {
+          limit: 20, // Use pagination
+        });
+      },
+      CacheTTL.STORY_FEED
+    );
 
-    return NextResponse.json(friends);
+    return NextResponse.json(stories);
   } catch (error) {
-    console.error('Error fetching friends:', error);
+    console.error('Error fetching stories:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

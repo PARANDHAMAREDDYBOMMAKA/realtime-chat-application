@@ -166,6 +166,16 @@ export const friendCache = {
   },
 
   /**
+   * Invalidate only friend requests
+   */
+  async invalidateRequests(userId: string) {
+    await Promise.all([
+      cacheService.delete(CacheKeys.friendRequests(userId)),
+      cacheService.delete(CacheKeys.friendRequestCount(userId)),
+    ]);
+  },
+
+  /**
    * Invalidate for both users in a friendship
    */
   async invalidateBoth(userId1: string, userId2: string) {

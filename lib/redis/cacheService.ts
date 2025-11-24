@@ -2,47 +2,50 @@ import { redisClient } from './client';
 
 /**
  * Cache TTL strategies (in seconds)
+ * Default: 1 week (604800 seconds)
  */
+const ONE_WEEK = 604800; // 7 days in seconds
+
 export const CacheTTL = {
-  // User data - moderate TTL, updated on profile changes
-  USER_PROFILE: 300, // 5 minutes
-  USER_BY_CLERK_ID: 600, // 10 minutes (clerk ID lookups are frequent)
+  // User data - 1 week
+  USER_PROFILE: ONE_WEEK,
+  USER_BY_CLERK_ID: ONE_WEEK,
 
-  // Conversations - short TTL, updated frequently
-  CONVERSATION_LIST: 60, // 1 minute
-  CONVERSATION_DETAILS: 120, // 2 minutes
+  // Conversations - 1 week
+  CONVERSATION_LIST: ONE_WEEK,
+  CONVERSATION_DETAILS: ONE_WEEK,
 
-  // Messages - tiered caching
-  MESSAGES_RECENT: 180, // 3 minutes for recent messages
-  MESSAGES_OLDER: 600, // 10 minutes for older messages
+  // Messages - 1 week
+  MESSAGES_RECENT: ONE_WEEK,
+  MESSAGES_OLDER: ONE_WEEK,
 
-  // Social relationships - moderate TTL
-  FRIEND_LIST: 300, // 5 minutes
-  FRIEND_REQUESTS: 180, // 3 minutes
-  FRIEND_REQUEST_COUNT: 120, // 2 minutes
+  // Social relationships - 1 week
+  FRIEND_LIST: ONE_WEEK,
+  FRIEND_REQUESTS: ONE_WEEK,
+  FRIEND_REQUEST_COUNT: ONE_WEEK,
 
-  // Real-time features - very short TTL
+  // Real-time features - very short TTL (keep these short for real-time accuracy)
   PRESENCE_STATUS: 45, // 45 seconds
   TYPING_INDICATOR: 5, // 5 seconds
   ONLINE_USERS: 60, // 1 minute
 
   // Counts and aggregations
   UNREAD_COUNT: 0, // No expiry, invalidate on read/new message
-  MESSAGE_REACTIONS: 180, // 3 minutes
+  MESSAGE_REACTIONS: ONE_WEEK,
 
-  // Stories - short TTL, time-sensitive
-  STORY_FEED: 90, // 1.5 minutes
-  STORY_VIEWS: 120, // 2 minutes
+  // Stories - short TTL, time-sensitive (24 hours max for stories)
+  STORY_FEED: 86400, // 24 hours
+  STORY_VIEWS: 86400, // 24 hours
 
   // Rooms
-  ROOM_LIST: 300, // 5 minutes
-  ROOM_DETAILS: 240, // 4 minutes
-  PUBLIC_ROOMS: 600, // 10 minutes
+  ROOM_LIST: ONE_WEEK,
+  ROOM_DETAILS: ONE_WEEK,
+  PUBLIC_ROOMS: ONE_WEEK,
 
   // Search and misc
-  SEARCH_RESULTS: 300, // 5 minutes
-  LINK_PREVIEW: 86400, // 24 hours
-  SUPPORT_TICKETS: 180, // 3 minutes
+  SEARCH_RESULTS: ONE_WEEK,
+  LINK_PREVIEW: ONE_WEEK,
+  SUPPORT_TICKETS: ONE_WEEK,
 } as const;
 
 /**
@@ -106,14 +109,19 @@ class CacheService {
    */
   async get<T>(key: string): Promise<T | null> {
     try {
-      const client = await redisClient.getClient();
+      const client = redisClient.getClient();
       const data = await client.get(key);
 
       if (!data) {
         return null;
       }
 
-      return JSON.parse(data) as T;
+      // Upstash Redis returns parsed JSON automatically for objects
+      if (typeof data === 'string') {
+        return JSON.parse(data) as T;
+      }
+
+      return data as T;
     } catch (error) {
       console.error(`Cache get error for key ${key}:`, error);
       return null;
@@ -125,11 +133,11 @@ class CacheService {
    */
   async set(key: string, value: any, ttl?: number): Promise<boolean> {
     try {
-      const client = await redisClient.getClient();
+      const client = redisClient.getClient();
       const serialized = JSON.stringify(value);
 
       if (ttl && ttl > 0) {
-        await client.setEx(key, ttl, serialized);
+        await client.setex(key, ttl, serialized);
       } else {
         await client.set(key, serialized);
       }
@@ -146,7 +154,7 @@ class CacheService {
    */
   async delete(key: string): Promise<boolean> {
     try {
-      const client = await redisClient.getClient();
+      const client = redisClient.getClient();
       await client.del(key);
       return true;
     } catch (error) {
@@ -160,14 +168,14 @@ class CacheService {
    */
   async deletePattern(pattern: string): Promise<number> {
     try {
-      const client = await redisClient.getClient();
+      const client = redisClient.getClient();
       const keys = await client.keys(pattern);
 
       if (keys.length === 0) {
         return 0;
       }
 
-      await client.del(keys);
+      await client.del(...keys);
       return keys.length;
     } catch (error) {
       console.error(`Cache deletePattern error for pattern ${pattern}:`, error);
@@ -184,13 +192,16 @@ class CacheService {
         return [];
       }
 
-      const client = await redisClient.getClient();
-      const values = await client.mGet(keys);
+      const client = redisClient.getClient();
+      const values = await client.mget(...keys);
 
-      return values.map((value) => {
+      return values.map((value: any) => {
         if (!value) return null;
         try {
-          return JSON.parse(value) as T;
+          if (typeof value === 'string') {
+            return JSON.parse(value) as T;
+          }
+          return value as T;
         } catch {
           return null;
         }
@@ -206,7 +217,7 @@ class CacheService {
    */
   async mset(entries: Array<{ key: string; value: any; ttl?: number }>): Promise<boolean> {
     try {
-      const client = await redisClient.getClient();
+      const client = redisClient.getClient();
 
       // Group by TTL for batch operations
       const noTtlEntries = entries.filter((e) => !e.ttl || e.ttl === 0);
@@ -214,18 +225,18 @@ class CacheService {
 
       // Set entries without TTL in batch
       if (noTtlEntries.length > 0) {
-        const keyValuePairs: string[] = [];
+        const keyValueObj: Record<string, string> = {};
         noTtlEntries.forEach((entry) => {
-          keyValuePairs.push(entry.key, JSON.stringify(entry.value));
+          keyValueObj[entry.key] = JSON.stringify(entry.value);
         });
-        await client.mSet(keyValuePairs);
+        await client.mset(keyValueObj);
       }
 
-      // Set entries with TTL individually (Redis doesn't support batch setEx)
+      // Set entries with TTL individually
       if (ttlEntries.length > 0) {
         await Promise.all(
           ttlEntries.map((entry) =>
-            client.setEx(entry.key, entry.ttl!, JSON.stringify(entry.value))
+            client.setex(entry.key, entry.ttl!, JSON.stringify(entry.value))
           )
         );
       }
@@ -242,8 +253,8 @@ class CacheService {
    */
   async increment(key: string, amount = 1): Promise<number> {
     try {
-      const client = await redisClient.getClient();
-      return await client.incrBy(key, amount);
+      const client = redisClient.getClient();
+      return await client.incrby(key, amount);
     } catch (error) {
       console.error(`Cache increment error for key ${key}:`, error);
       return 0;
@@ -255,8 +266,8 @@ class CacheService {
    */
   async decrement(key: string, amount = 1): Promise<number> {
     try {
-      const client = await redisClient.getClient();
-      return await client.decrBy(key, amount);
+      const client = redisClient.getClient();
+      return await client.decrby(key, amount);
     } catch (error) {
       console.error(`Cache decrement error for key ${key}:`, error);
       return 0;
@@ -268,7 +279,7 @@ class CacheService {
    */
   async exists(key: string): Promise<boolean> {
     try {
-      const client = await redisClient.getClient();
+      const client = redisClient.getClient();
       const result = await client.exists(key);
       return result === 1;
     } catch (error) {
@@ -282,7 +293,7 @@ class CacheService {
    */
   async expire(key: string, ttl: number): Promise<boolean> {
     try {
-      const client = await redisClient.getClient();
+      const client = redisClient.getClient();
       await client.expire(key, ttl);
       return true;
     } catch (error) {

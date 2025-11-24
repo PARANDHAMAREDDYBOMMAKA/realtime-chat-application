@@ -41,26 +41,39 @@ export const searchMessages = query({
         }
 
         // Search for messages in those conversations
-        const allMessages = await ctx.db.query("messages").collect();
-
         const searchQuery = args.query.toLowerCase();
+        const matchingMessages: Array<{
+            _id: any;
+            senderId: any;
+            conversationId: any;
+            content: string[];
+            createdAt?: number;
+            type: string;
+        }> = [];
 
-        // Filter messages by conversation and search query
-        const matchingMessages = allMessages.filter((message) => {
-            if (!targetConversations.includes(message.conversationId)) {
-                return false;
-            }
+        // Query messages for each conversation separately to avoid loading all messages
+        for (const conversationId of targetConversations) {
+            const messages = await ctx.db
+                .query("messages")
+                .withIndex("by_conversationId", (q) => q.eq("conversationId", conversationId))
+                .filter((q) => q.eq(q.field("type"), "text"))
+                .order("desc")
+                .take(100); // Limit per conversation
 
-            // Only search text messages
-            if (message.type !== "text") {
-                return false;
-            }
-
-            // Check if any content matches
-            return message.content.some((content) =>
-                content.toLowerCase().includes(searchQuery)
+            // Filter for matching content
+            const filtered = messages.filter((message) =>
+                message.content.some((content) =>
+                    content.toLowerCase().includes(searchQuery)
+                )
             );
-        });
+
+            matchingMessages.push(...filtered);
+
+            // Early exit if we have enough results
+            if (matchingMessages.length >= 50) {
+                break;
+            }
+        }
 
         // Sort by most recent first
         matchingMessages.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -68,24 +81,41 @@ export const searchMessages = query({
         // Limit to 50 results
         const limitedMessages = matchingMessages.slice(0, 50);
 
+        // Build caches to avoid N+1 queries
+        const senderIds = [...new Set(limitedMessages.map(m => m.senderId))];
+        const conversationIdsSet = [...new Set(limitedMessages.map(m => m.conversationId))];
+
+        const sendersData = await Promise.all(senderIds.map(id => ctx.db.get(id)));
+        const conversationsData = await Promise.all(conversationIdsSet.map(id => ctx.db.get(id)));
+
+        const senderMap = new Map(
+            sendersData.filter((s): s is NonNullable<typeof s> => s !== null && '_id' in s && 'username' in s).map(s => [s._id, s])
+        );
+        const conversationMap = new Map(
+            conversationsData.filter((c): c is NonNullable<typeof c> => c !== null && '_id' in c && 'isGroup' in c).map(c => [c._id, c])
+        );
+
         // Get message details with sender info
         const messagesWithDetails = await Promise.all(
             limitedMessages.map(async (message) => {
-                const sender = await ctx.db.get(message.senderId);
-                const conversation = await ctx.db.get(message.conversationId);
+                const sender = senderMap.get(message.senderId);
+                const conversation = conversationMap.get(message.conversationId);
 
-                if (!sender || !conversation) {
+                // Type guard to ensure we have the right types
+                if (!sender || !conversation ||
+                    !('username' in sender) || !('imageUrl' in sender) ||
+                    !('isGroup' in conversation)) {
                     return null;
                 }
 
                 // Get conversation name
-                let conversationName = conversation.name || "";
+                let conversationName = ('name' in conversation ? conversation.name : '') || "";
                 if (!conversation.isGroup) {
                     // For DM, get the other user's name
                     const members = await ctx.db
                         .query("conversationMembers")
                         .withIndex("by_conversationId", (q) =>
-                            q.eq("conversationId", conversation._id)
+                            q.eq("conversationId", conversation._id as any)
                         )
                         .collect();
 

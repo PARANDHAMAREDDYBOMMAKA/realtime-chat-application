@@ -29,7 +29,7 @@ export default function VideoCall({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Configure room options for better video/audio quality
+  // Configure room options for better video/audio quality and error handling
   const roomOptions: RoomOptions = {
     adaptiveStream: true,
     dynacast: true,
@@ -37,11 +37,37 @@ export default function VideoCall({
       videoSimulcastLayers: [VideoPresets.h540, VideoPresets.h216],
       screenShareSimulcastLayers: [VideoPresets.h1080, VideoPresets.h720],
       stopMicTrackOnMute: false,
+      dtx: true, // Discontinuous Transmission for better bandwidth
     },
     videoCaptureDefaults: {
       resolution: VideoPresets.h720.resolution,
     },
   };
+
+  // Suppress non-critical console errors from LiveKit
+  useEffect(() => {
+    const originalError = console.error;
+    console.error = (...args) => {
+      // Filter out known non-critical LiveKit errors
+      const message = args[0]?.toString() || '';
+      if (
+        message.includes('Unknown DataChannel error') ||
+        message.includes('on lossy') ||
+        message.includes('on reliable') ||
+        message.includes('Client initiated disconnect') ||
+        message.includes('ConnectionError: Client initiated disconnect')
+      ) {
+        // Silently ignore these errors - they're normal LiveKit behavior
+        return;
+      }
+      // Log other errors normally
+      originalError(...args);
+    };
+
+    return () => {
+      console.error = originalError; // Restore original console.error on unmount
+    };
+  }, []);
 
   useEffect(() => {
     const fetchToken = async () => {

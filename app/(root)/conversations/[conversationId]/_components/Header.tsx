@@ -14,6 +14,7 @@ import Link from "next/link";
 import React from "react";
 import { Id } from "@/convex/_generated/dataModel";
 import MessageSearchDialog from "./MessageSearchDialog";
+import { AIAssistantDialog } from "./ai/AIAssistantDialog";
 
 type Props = {
   imageUrl?: string;
@@ -43,6 +44,9 @@ const Header = ({ imageUrl, name, conversationId, options, onVideoCall, onAudioC
       </div>
 
       <div className="flex items-center gap-2">
+        {/* AI Assistant Button */}
+        <AIAssistantDialog conversationId={conversationId} />
+
         {/* Search Button */}
         <MessageSearchDialog conversationId={conversationId} />
 

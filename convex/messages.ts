@@ -5,6 +5,8 @@ import { query } from "./_generated/server";
 export const get = query({
     args: {
         id: v.id("conversations"),
+        limit: v.optional(v.number()),
+        before: v.optional(v.id("messages")),
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
@@ -32,26 +34,44 @@ export const get = query({
             throw new ConvexError("User not found");
         }
 
-        const messages = await ctx.db
+        const limit = args.limit ?? 50;
+        let messagesQuery = ctx.db
             .query("messages")
             .withIndex("by_conversationId", (q) => q.eq("conversationId", args.id))
-            .order("desc")
-            .collect();
+            .order("desc");
 
-        const messagesWithUsers = await Promise.all(
-            messages.map(async (message) => {
-                const messageSender = await ctx.db.get(message.senderId);
-                if (!messageSender)
-                    throw new ConvexError("Message sender not found");
+        if (args.before) {
+            const beforeMessage = await ctx.db.get(args.before);
+            if (beforeMessage) {
+                messagesQuery = messagesQuery.filter((q) =>
+                    q.lt(q.field("_creationTime"), beforeMessage._creationTime)
+                );
+            }
+        }
 
-                return {
-                    message,
-                    senderImage: messageSender.imageUrl,
-                    senderName: messageSender.username,
-                    isCurrentUser: messageSender._id === currentUser._id,
-                };
-            })
+        const messages = await messagesQuery.take(limit);
+
+        // Build a sender cache to avoid N+1 queries
+        const senderIds = [...new Set(messages.map(m => m.senderId))];
+        const senders = await Promise.all(
+            senderIds.map(id => ctx.db.get(id))
         );
+        const senderMap = new Map(
+            senders.filter(s => s !== null).map(s => [s!._id, s!])
+        );
+
+        const messagesWithUsers = messages.map((message) => {
+            const messageSender = senderMap.get(message.senderId);
+            if (!messageSender)
+                throw new ConvexError("Message sender not found");
+
+            return {
+                message,
+                senderImage: messageSender.imageUrl,
+                senderName: messageSender.username,
+                isCurrentUser: messageSender._id === currentUser._id,
+            };
+        });
 
         return messagesWithUsers;
     },

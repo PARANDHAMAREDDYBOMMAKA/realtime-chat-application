@@ -45,8 +45,10 @@ export const create = mutation({
 
 // Get stories from friends (active stories only)
 export const getFriendsStories = query({
-    args: {},
-    handler: async (ctx) => {
+    args: {
+        limit: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
         if (!identity) {
             throw new ConvexError("Unauthorized");
@@ -154,7 +156,9 @@ export const getFriendsStories = query({
             return b!.stories[0].createdAt - a!.stories[0].createdAt;
         });
 
-        return filteredStories;
+        // Apply limit if specified
+        const limit = args.limit ?? 20;
+        return filteredStories.slice(0, limit);
     },
 });
 
