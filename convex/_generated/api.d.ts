@@ -28,6 +28,7 @@ import type * as linkPreviews from "../linkPreviews.js";
 import type * as mentions from "../mentions.js";
 import type * as message from "../message.js";
 import type * as messages from "../messages.js";
+import type * as migrations from "../migrations.js";
 import type * as notificationSettings from "../notificationSettings.js";
 import type * as presence from "../presence.js";
 import type * as reactions from "../reactions.js";
@@ -63,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   mentions: typeof mentions;
   message: typeof message;
   messages: typeof messages;
+  migrations: typeof migrations;
   notificationSettings: typeof notificationSettings;
   presence: typeof presence;
   reactions: typeof reactions;

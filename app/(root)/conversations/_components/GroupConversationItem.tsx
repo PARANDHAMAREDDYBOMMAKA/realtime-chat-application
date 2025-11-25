@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Id } from "@/convex/_generated/dataModel";
 import { Users, Hash, MessageCircle, Image, Video, Mic, FileText } from "lucide-react";
@@ -15,6 +15,7 @@ type Props = {
   lstMsgType?: string;
   index?: number;
   unreadCount?: number;
+  groupImageUrl?: string;
 };
 
 const GroupConversationItem = React.memo(({
@@ -25,6 +26,7 @@ const GroupConversationItem = React.memo(({
   lstMsgType = "text",
   index = 0,
   unreadCount = 0,
+  groupImageUrl,
 }: Props) => {
   const prefersReducedMotion = useReducedMotion();
 
@@ -86,6 +88,7 @@ const GroupConversationItem = React.memo(({
                   />
                 )}
                 <Avatar className="border-2 border-border/30 group-hover:border-primary/50 transition-all duration-300 h-10 w-10 ring-2 ring-background shadow-sm bg-gradient-to-br from-blue-500/10 to-purple-500/10">
+                  <AvatarImage src={groupImageUrl} className="rounded-full object-cover" />
                   <AvatarFallback className="bg-gradient-to-br from-blue-500/20 to-purple-500/20 text-blue-600 font-bold">
                     {name.charAt(0).toUpperCase()}
                   </AvatarFallback>

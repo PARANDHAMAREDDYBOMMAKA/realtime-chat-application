@@ -11,6 +11,8 @@ import RemoveFriendDialog from "./_components/dialogs/RemoveFriendDialog";
 import DeleteGroupDialog from "./_components/dialogs/DeleteGroupDialog";
 import LeaveGroupDialog from "./_components/dialogs/LeaveGroupDialog";
 import AddMembersDialog from "./_components/dialogs/AddMembersDialog";
+import GroupMembersDialog from "./_components/dialogs/GroupMembersDialog";
+import UpdateGroupImageDialog from "./_components/dialogs/UpdateGroupImageDialog";
 import EnhancedLoading from "@/components/shared/EnhancedLoading";
 import VideoCall from "./_components/VideoCall";
 import IncomingCallNotification from "./_components/IncomingCallNotification";
@@ -58,6 +60,8 @@ const ConversationPage = ({ params }: Props) => {
   const [deleteGroupDialog, setDeleteGroupDialog] = useState(false);
   const [leaveGroupDialog, setLeaveGroupDialog] = useState(false);
   const [addMembersDialog, setAddMembersDialog] = useState(false);
+  const [groupMembersDialog, setGroupMembersDialog] = useState(false);
+  const [updateGroupImageDialog, setUpdateGroupImageDialog] = useState(false);
   const [isInCall, setIsInCall] = useState(false);
   const [replyToMessage, setReplyToMessage] = useState<Id<"messages"> | null>(null);
 
@@ -171,7 +175,7 @@ const ConversationPage = ({ params }: Props) => {
             )}
             callerImage={
               conversation.isGroup
-                ? undefined
+                ? conversation.groupImageUrl
                 : activeCall.initiator?.imageUrl
             }
             callType={activeCall.type}
@@ -190,7 +194,7 @@ const ConversationPage = ({ params }: Props) => {
             )}
             recipientImage={
               conversation.isGroup
-                ? undefined
+                ? conversation.groupImageUrl
                 : conversation.otherMember?.imageUrl
             }
             callType={activeCall.type}
@@ -233,6 +237,21 @@ const ConversationPage = ({ params }: Props) => {
                 open={addMembersDialog}
                 setOpen={setAddMembersDialog}
               />
+              <GroupMembersDialog
+                conversationId={conversationId}
+                open={groupMembersDialog}
+                setOpen={setGroupMembersDialog}
+                isCreator={conversation.isCreator || false}
+                isAdmin={conversation.isAdmin || false}
+              />
+              {(conversation.isCreator || conversation.isAdmin) && (
+                <UpdateGroupImageDialog
+                  conversationId={conversationId}
+                  open={updateGroupImageDialog}
+                  setOpen={setUpdateGroupImageDialog}
+                  currentImageUrl={conversation.groupImageUrl}
+                />
+              )}
             </>
           )}
 
@@ -241,7 +260,7 @@ const ConversationPage = ({ params }: Props) => {
               conversationId={conversationId}
               imageUrl={
                 conversation.isGroup
-                  ? undefined
+                  ? conversation.groupImageUrl
                   : conversation.otherMember?.imageUrl
               }
               name={capitalizeName(
@@ -253,20 +272,38 @@ const ConversationPage = ({ params }: Props) => {
                 conversation.isGroup
                   ? [
                       {
+                        label: "Group Members",
+                        destructive: false,
+                        onClick: () => setGroupMembersDialog(true),
+                      },
+                      {
                         label: "Add Members",
                         destructive: false,
                         onClick: () => setAddMembersDialog(true),
                       },
+                      ...(conversation.isCreator || conversation.isAdmin
+                        ? [
+                            {
+                              label: "Update Group Photo",
+                              destructive: false,
+                              onClick: () => setUpdateGroupImageDialog(true),
+                            },
+                          ]
+                        : []),
                       {
                         label: "Leave Group",
                         destructive: false,
                         onClick: () => setLeaveGroupDialog(true),
                       },
-                      {
-                        label: "Delete Group",
-                        destructive: true,
-                        onClick: () => setDeleteGroupDialog(true),
-                      },
+                      ...(conversation.isCreator || conversation.isAdmin
+                        ? [
+                            {
+                              label: "Delete Group",
+                              destructive: true,
+                              onClick: () => setDeleteGroupDialog(true),
+                            },
+                          ]
+                        : []),
                     ]
                   : [
                       {

@@ -84,6 +84,7 @@ const ConversationsLayout = ({ children }: Props) => {
                     lstMsgSender={conv.lastMessage?.sender}
                     lstMsgType={conv.lastMessage?.type}
                     unreadCount={(conv as any).unreadCount || 0}
+                    groupImageUrl={conv.conversation.groupImageUrl}
                   />
                 ) : (
                   <DMConversationItem
