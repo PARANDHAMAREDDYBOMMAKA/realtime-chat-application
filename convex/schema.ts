@@ -47,7 +47,9 @@ export default defineSchema({
         isGroup: v.boolean(),
         lastMessageId: v.optional(v.id("messages")),
         roomId: v.optional(v.id("rooms")),
-    }).index("by_room", ["roomId"]),
+        creatorId: v.optional(v.id("users")),
+        groupImageUrl: v.optional(v.string()),
+    }).index("by_room", ["roomId"]).index("by_creator", ["creatorId"]),
 
     conversationMembers: defineTable({
         memberId: v.id("users"),
@@ -55,6 +57,7 @@ export default defineSchema({
         lastSeenMessage: v.optional(v.id("messages")),
         isTyping: v.optional(v.boolean()),
         lastTypingTime: v.optional(v.number()),
+        isAdmin: v.optional(v.boolean()),
     }).index("by_memberId", ["memberId"]).index("by_conversationId", ["conversationId"]).index("by_memberId_conversationId", ["memberId", "conversationId"]).index("by_typing", ["isTyping"]),
 
     messages: defineTable({

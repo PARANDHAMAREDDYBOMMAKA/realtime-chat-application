@@ -44,13 +44,26 @@ export const get = query({
                     lastSeenMessageId: otherMembership.lastSeenMessage,
                     isTyping: otherMembership.isTyping ?? false
                 },
-                otherMembers: null
+                otherMembers: null,
+                isCreator: false,
+                isAdmin: false
             }
         }
         else {
             const otherMembers = (await Promise.all(allConversationMemberships.filter(membership => membership.memberId !== currentUser._id)))
 
-            return { ...conversation, otherMembers, otherMember: null }
+            // For legacy groups without a creator, allow everyone to manage
+            // For new groups with creatorId, strictly enforce creator/admin rules
+            const isCreator = conversation.creatorId === currentUser._id || !conversation.creatorId;
+            const isAdmin = membership.isAdmin === true || !conversation.creatorId;
+
+            return {
+                ...conversation,
+                otherMembers,
+                otherMember: null,
+                isCreator,
+                isAdmin
+            }
         }
     },
 });
@@ -58,7 +71,8 @@ export const get = query({
 export const createGroup = mutation({
     args: {
         members: v.array(v.id("users")),
-        name: v.string()
+        name: v.string(),
+        groupImageUrl: v.optional(v.string())
     },
     handler: async (ctx, args) => {
         const identity = await ctx.auth.getUserIdentity();
@@ -77,7 +91,9 @@ export const createGroup = mutation({
 
         const conversationId = await ctx.db.insert("conversations", {
             isGroup: true,
-            name: args.name
+            name: args.name,
+            creatorId: currentUser._id,
+            groupImageUrl: args.groupImageUrl
         })
 
         // Remove duplicates from member list
@@ -87,7 +103,8 @@ export const createGroup = mutation({
             await ctx.db.insert("conversationMembers", {
                 memberId,
                 conversationId,
-                isTyping: false
+                isTyping: false,
+                isAdmin: memberId === currentUser._id // Creator is automatically an admin
             })
         }))
 
@@ -273,6 +290,24 @@ export const deleteConversation = mutation({
 
         const conversation = await ctx.db.get(args.conversationId);
         if (!conversation) throw new ConvexError("Conversation not found");
+
+        // Check if user is creator or admin for group conversations
+        // Legacy groups (without creatorId) can be deleted by anyone
+        if (conversation.isGroup && conversation.creatorId) {
+            const currentUserMembership = await ctx.db
+                .query("conversationMembers")
+                .withIndex("by_memberId_conversationId", (q) =>
+                    q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)
+                )
+                .first();
+
+            const isCreator = conversation.creatorId === currentUser._id;
+            const isAdmin = currentUserMembership?.isAdmin === true;
+
+            if (!isCreator && !isAdmin) {
+                throw new ConvexError("Only the group creator or admins can delete this group");
+            }
+        }
 
         const membership = await ctx.db.query("conversationMembers").withIndex("by_conversationId", (q) => q.eq("conversationId", args.conversationId)).collect()
         if (!membership || membership.length <= 1) throw new ConvexError("Membership not found");
@@ -480,5 +515,182 @@ export const getAvailableFriendsForGroup = query({
     );
 
     return availableFriends.filter(Boolean);
+  },
+});
+
+export const getGroupMembers = query({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const currentUser = await getUserByClerjId({ ctx, clerkId: identity.subject });
+    if (!currentUser) return [];
+
+    const conversation = await ctx.db.get(args.conversationId);
+    if (!conversation || !conversation.isGroup) return [];
+
+    // Get all members of the conversation
+    const conversationMembers = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_conversationId", (q) => q.eq("conversationId", args.conversationId))
+      .collect();
+
+    // For legacy groups without creatorId, don't show admin badges
+    const hasCreator = !!conversation.creatorId;
+
+    // Get user details for each member
+    const members = await Promise.all(
+      conversationMembers.map(async (member) => {
+        const user = await ctx.db.get(member.memberId);
+        return user
+          ? {
+              _id: user._id,
+              username: user.username,
+              imageUrl: user.imageUrl,
+              email: user.email,
+              isAdmin: hasCreator ? (member.isAdmin || false) : false,
+              isCreator: hasCreator ? (conversation.creatorId === user._id) : false,
+            }
+          : null;
+      })
+    );
+
+    return members.filter(Boolean);
+  },
+});
+
+export const toggleAdmin = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    memberId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Unauthorized");
+    }
+
+    const currentUser = await getUserByClerjId({ ctx, clerkId: identity.subject });
+    if (!currentUser) {
+      throw new ConvexError("User not found");
+    }
+
+    const conversation = await ctx.db.get(args.conversationId);
+    if (!conversation) throw new ConvexError("Conversation not found");
+
+    if (!conversation.isGroup) {
+      throw new ConvexError("This is not a group conversation");
+    }
+
+    // Only allow admin management for new groups with creatorId
+    if (!conversation.creatorId) {
+      throw new ConvexError("Admin management is not available for legacy groups");
+    }
+
+    // Check if current user is the creator or an admin
+    const currentUserMembership = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_memberId_conversationId", (q) =>
+        q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)
+      )
+      .first();
+
+    const isCreator = conversation.creatorId === currentUser._id;
+    const isAdmin = currentUserMembership?.isAdmin === true;
+
+    if (!isCreator && !isAdmin) {
+      throw new ConvexError("Only the group creator or admins can manage admin privileges");
+    }
+
+    // Get the target member's membership
+    const targetMembership = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_memberId_conversationId", (q) =>
+        q.eq("memberId", args.memberId).eq("conversationId", args.conversationId)
+      )
+      .first();
+
+    if (!targetMembership) {
+      throw new ConvexError("Member not found in this group");
+    }
+
+    // Prevent removing admin from creator
+    if (conversation.creatorId === args.memberId && targetMembership.isAdmin) {
+      throw new ConvexError("Cannot remove admin privileges from the group creator");
+    }
+
+    // Toggle admin status
+    await ctx.db.patch(targetMembership._id, {
+      isAdmin: !targetMembership.isAdmin,
+    });
+
+    return { success: true, isAdmin: !targetMembership.isAdmin };
+  },
+});
+
+export const updateGroupImage = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    groupImageUrl: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Unauthorized");
+    }
+
+    const currentUser = await getUserByClerjId({ ctx, clerkId: identity.subject });
+    if (!currentUser) {
+      throw new ConvexError("User not found");
+    }
+
+    const conversation = await ctx.db.get(args.conversationId);
+    if (!conversation) throw new ConvexError("Conversation not found");
+
+    if (!conversation.isGroup) {
+      throw new ConvexError("This is not a group conversation");
+    }
+
+    // Check if current user is the creator or an admin
+    const currentUserMembership = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_memberId_conversationId", (q) =>
+        q.eq("memberId", currentUser._id).eq("conversationId", args.conversationId)
+      )
+      .first();
+
+    if (!currentUserMembership) {
+      throw new ConvexError("You are not a member of this group");
+    }
+
+    // For legacy groups without creatorId, allow everyone to update
+    // For new groups, only creator or admin can update
+    if (conversation.creatorId) {
+      const isCreator = conversation.creatorId === currentUser._id;
+      const isAdmin = currentUserMembership.isAdmin === true;
+
+      if (!isCreator && !isAdmin) {
+        throw new ConvexError("Only the group creator or admins can update the group image");
+      }
+    }
+
+    // Update group image
+    await ctx.db.patch(args.conversationId, {
+      groupImageUrl: args.groupImageUrl,
+    });
+
+    // Create a system message about the image update
+    await ctx.db.insert("messages", {
+      senderId: currentUser._id,
+      conversationId: args.conversationId,
+      type: "system",
+      content: [`${capitalizeName(currentUser.username)} updated the group photo`],
+      createdAt: Date.now(),
+    });
+
+    return { success: true };
   },
 });

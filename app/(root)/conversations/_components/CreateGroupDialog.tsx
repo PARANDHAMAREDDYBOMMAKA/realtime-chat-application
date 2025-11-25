@@ -36,8 +36,8 @@ import { useMutationState } from "@/hooks/useMutationState";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
-import { CirclePlus, X } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import { CirclePlus, X, ImagePlus, Loader2 } from "lucide-react";
+import React, { useMemo, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -61,6 +61,9 @@ const createGroupFormSchema = z.object({
 
 const CreateGroupDialog = () => {
   const [open, setOpen] = useState(false);
+  const [groupImage, setGroupImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const friends = useQuery(api.friends.get) as Friend[] | null;
 
@@ -84,12 +87,59 @@ const CreateGroupDialog = () => {
       : [];
   }, [members, friends]);
 
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB');
+      return;
+    }
+
+    setUploadingImage(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload/cloudinary?type=group', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+
+      const data = await response.json();
+      setGroupImage(data.data.url);
+      toast.success('Image uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error('Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSubmit = async (
     values: z.infer<typeof createGroupFormSchema>
   ) => {
     try {
-      await createGroup({ name: values.name, members: values.members });
+      await createGroup({
+        name: values.name,
+        members: values.members,
+        groupImageUrl: groupImage || undefined
+      });
       form.reset();
+      setGroupImage(null);
       setOpen(false);
       toast.success("Group created successfully");
     } catch (error) {
@@ -125,6 +175,49 @@ const CreateGroupDialog = () => {
               onSubmit={form.handleSubmit(handleSubmit)}
               className="space-y-8"
             >
+              {/* Group Image Upload */}
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <Avatar className="w-24 h-24">
+                    <AvatarImage src={groupImage || undefined} />
+                    <AvatarFallback className="text-2xl">
+                      <ImagePlus className="w-8 h-8" />
+                    </AvatarFallback>
+                  </Avatar>
+                  {uploadingImage && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                      <Loader2 className="w-6 h-6 animate-spin text-white" />
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                >
+                  {groupImage ? 'Change Photo' : 'Upload Photo'}
+                </Button>
+                {groupImage && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setGroupImage(null)}
+                  >
+                    Remove Photo
+                  </Button>
+                )}
+              </div>
+
               <FormField
                 control={form.control}
                 name="name"
