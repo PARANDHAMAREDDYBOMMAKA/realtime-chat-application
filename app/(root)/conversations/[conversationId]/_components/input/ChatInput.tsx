@@ -6,6 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import { useConversation } from "@/hooks/useConversation";
 import { api } from "@/convex/_generated/api";
 import { useTyping } from "@/hooks/useTyping";
+import { useDrafts } from "@/hooks/useDrafts";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { SendHorizontal, Smile, Paperclip, Mic, X, Square, Image, Video, FileText, Reply, AtSign } from "lucide-react";
@@ -23,7 +24,7 @@ interface ChatInputProps {
 }
 
 export default function ChatInput({ conversationId, replyTo, onCancelReply }: ChatInputProps) {
-  const [message, setMessage] = useState("");
+  const { draft: message, updateDraft: setMessage, clearDraft, isInitialized: isDraftInitialized } = useDrafts(conversationId);
   const [isFocused, setIsFocused] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -75,7 +76,7 @@ export default function ChatInput({ conversationId, replyTo, onCancelReply }: Ch
   };
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
-    setMessage((prev) => prev + emojiData.emoji);
+    setMessage(message + emojiData.emoji);
     setShowEmojiPicker(false);
     textareaRef.current?.focus();
   };
@@ -352,8 +353,8 @@ export default function ChatInput({ conversationId, replyTo, onCancelReply }: Ch
       // Create message in database
       await createMessage(messageData);
 
-      // Clear input, stop typing, and clear reply
-      setMessage("");
+      // Clear input, draft, stop typing, and clear reply
+      clearDraft();
       setMentionedUsers(new Map());
       stopTyping();
       if (onCancelReply) onCancelReply();

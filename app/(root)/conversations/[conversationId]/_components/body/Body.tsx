@@ -9,6 +9,8 @@ import { Id } from "@/convex/_generated/dataModel";
 import TypingIndicator from "../TypingIndicator";
 import { format, isToday, isYesterday, isSameDay } from "date-fns";
 import { capitalizeName } from "@/lib/utils";
+import { useScreenshotDetection } from "@/hooks/useScreenshotDetection";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   id: string;
@@ -41,10 +43,40 @@ export default function Body({ conversationId, onReply }: BodyProps) {
     conversationId ? { id: conversationId } : "skip"
   );
   const updateLastSeenMessage = useMutation(api.conversation.updateLastSeenMessage);
+  const recordScreenshot = useMutation(api.screenshots.recordScreenshot);
   const { user } = useUser();
+  const { toast } = useToast();
   const conversation = useQuery(api.conversation.get,
     conversationId ? { id: conversationId } : "skip"
   );
+
+  // Screenshot detection
+  useScreenshotDetection({
+    enabled: !!conversationId && !!user,
+    onScreenshotDetected: async () => {
+      console.log("🔔 Screenshot detected! Recording...");
+      if (!conversationId) {
+        console.log("❌ No conversation ID");
+        return;
+      }
+
+      try {
+        const result = await recordScreenshot({ conversationId });
+        console.log("✅ Screenshot recorded:", result);
+        toast({
+          title: "Screenshot detected",
+          description: "Other participants have been notified",
+        });
+      } catch (error) {
+        console.error("❌ Error recording screenshot:", error);
+        toast({
+          title: "Screenshot detection failed",
+          description: error instanceof Error ? error.message : "Could not record screenshot",
+          variant: "destructive",
+        });
+      }
+    },
+  });
 
   React.useEffect(() => {
     if (messages && messages.length > 0 && conversationId && user) {

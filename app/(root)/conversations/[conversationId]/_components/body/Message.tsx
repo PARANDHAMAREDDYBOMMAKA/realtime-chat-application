@@ -11,6 +11,8 @@ import AudioPlayer from "./AudioPlayer";
 import MessageActions from "./MessageActions";
 import MessageReactions from "./MessageReactions";
 import ForwardMessageDialog from "./ForwardMessageDialog";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
+import MessageTranslation from "@/components/MessageTranslation";
 import { toast } from "sonner";
 import { useSwipeable } from "react-swipeable";
 
@@ -52,6 +54,7 @@ const Message = ({
   const [showForwardDialog, setShowForwardDialog] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [showMobileActions, setShowMobileActions] = useState(false);
+  const [showTranslation, setShowTranslation] = useState(false);
 
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -318,9 +321,9 @@ const Message = ({
                 </div>
               )}
 
-              <p className="text-wrap break-words whitespace-pre-wrap leading-relaxed">
-                {renderMessageWithMentions(content[0])}
-              </p>
+              <div className="text-wrap break-words leading-relaxed">
+                <MarkdownRenderer content={content[0]} />
+              </div>
 
               {/* Link previews */}
               {linkPreviews && linkPreviews.length > 0 && (
@@ -468,10 +471,19 @@ const Message = ({
           />
 
           {/* Message actions - positioned as overlay */}
-          <div className={cn("absolute -top-3 z-20 flex items-center gap-1", {
-            "right-2": fromCurrentUser,
-            "left-2": !fromCurrentUser,
-          })}>
+          <div className={cn(
+            "absolute -top-3 z-20 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+            "bg-background/95 backdrop-blur-sm px-2 py-1 rounded-lg shadow-lg border border-border/50",
+            {
+              "right-2": fromCurrentUser,
+              "left-2": !fromCurrentUser,
+            }
+          )}>
+            {/* Translation Button for text messages */}
+            {type === "text" && (
+              <MessageTranslation messageText={content[0]} />
+            )}
+
             {/* Message Actions Dropdown */}
             <MessageActions
               onDelete={handleDelete}
@@ -626,39 +638,5 @@ const Message = ({
     </div>
   );
 };
-
-// Helper function to render message with highlighted mentions
-function renderMessageWithMentions(text: string) {
-  // Match mentions in format @username
-  const mentionRegex = /@(\w+)/g;
-  const parts = [];
-  let lastIndex = 0;
-  let match;
-
-  while ((match = mentionRegex.exec(text)) !== null) {
-    // Add text before mention
-    if (match.index > lastIndex) {
-      parts.push(text.substring(lastIndex, match.index));
-    }
-
-    parts.push(
-      <span
-        key={match.index}
-        className="inline-flex items-center font-bold px-2 py-0.5 rounded-md transition-all cursor-pointer shadow-sm bg-blue-500/20 text-blue-600 dark:text-blue-400 dark:bg-blue-400/20 border border-blue-500/40 dark:border-blue-400/40 hover:bg-blue-500/30 dark:hover:bg-blue-400/30"
-      >
-        @{match[1]}
-      </span>
-    );
-
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Add remaining text
-  if (lastIndex < text.length) {
-    parts.push(text.substring(lastIndex));
-  }
-
-  return parts.length > 0 ? parts : text;
-}
 
 export default Message;

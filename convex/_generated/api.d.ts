@@ -35,9 +35,12 @@ import type * as reactions from "../reactions.js";
 import type * as request from "../request.js";
 import type * as requests from "../requests.js";
 import type * as rooms from "../rooms.js";
+import type * as screenshots from "../screenshots.js";
 import type * as search from "../search.js";
 import type * as stories from "../stories.js";
 import type * as support from "../support.js";
+import type * as transcription from "../transcription.js";
+import type * as translation from "../translation.js";
 import type * as user from "../user.js";
 
 /**
@@ -71,9 +74,12 @@ declare const fullApi: ApiFromModules<{
   request: typeof request;
   requests: typeof requests;
   rooms: typeof rooms;
+  screenshots: typeof screenshots;
   search: typeof search;
   stories: typeof stories;
   support: typeof support;
+  transcription: typeof transcription;
+  translation: typeof translation;
   user: typeof user;
 }>;
 export declare const api: FilterApi<
